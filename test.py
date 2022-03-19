@@ -62,7 +62,7 @@ def refresh_mods():
     for mod in mods:
         name = mod.split("\\")[-1].split("-")[1].split(".")[0].replace("_P", "").replace("Mods_", "").replace("_", " ")
         path = mod.replace(".old", "")
-        GlobalVariables.mods_list.append( (name, str(os.path.getsize(mod)/1000) + " MB", path.split("\\")[-1]) )
+        GlobalVariables.mods_list.append( (name, str(round(os.path.getsize(mod)/1000000, 2)) + " MB", path.split("\\")[-1]) )
 
     GlobalVariables.mod_selector.DeleteAllItems()
 
@@ -123,17 +123,20 @@ class ModManager(wx.Frame):
 
         selBtn = wx.Button(leftPanel, label='Select All')
         desBtn = wx.Button(leftPanel, label='Deselect All')
-        appBtn = wx.Button(leftPanel, label='Apply Mod Changes')
+        refresh_button = wx.Button(leftPanel, label='Refresh')
+        appBtn = wx.Button(leftPanel, label='Apply Changes')
         game_path_button = wx.Button(leftPanel, label='Change Game Path')
 
         selBtn.Bind(wx.EVT_BUTTON, self.OnSelectAll)
         desBtn.Bind(wx.EVT_BUTTON, self.OnDeselectAll)
+        refresh_button.Bind(wx.EVT_BUTTON, self.OnRefresh)
         appBtn.Bind(wx.EVT_BUTTON, self.OnApply)
         game_path_button.Bind(wx.EVT_BUTTON, self.ChangeGamePath)
 
 
         vbox2.Add(selBtn, flag=wx.ALIGN_CENTER)
         vbox2.Add(desBtn, flag=wx.ALIGN_CENTER)
+        vbox2.Add(refresh_button, flag=wx.ALIGN_CENTER)
         vbox2.Add(game_path_button, flag=wx.ALIGN_CENTER)
         vbox2.Add(appBtn, flag=wx.ALIGN_CENTER)
 
@@ -266,6 +269,9 @@ class ModManager(wx.Frame):
             json.dump(json_data, open("Settings.ini", "w"))
 
         dialog.Destroy()
+
+    def OnRefresh(self, event):
+        refresh_mods()
 
 def main():
 
