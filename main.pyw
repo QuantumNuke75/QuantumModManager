@@ -1,377 +1,293 @@
-import json
-import os, wx, subprocess
+import json, os, wx
 import GlobalVariables
-from pathlib import Path
 
 
-class FileDropInput(wx.FileDropTarget):
+class CheckListCtrl(wx.ListCtrl):
 
-    def __init__(self, window):
-        wx.FileDropTarget.__init__(self)
-        self.window = window
+    def __init__(self, parent):
+        wx.ListCtrl.__init__(self, parent, wx.ID_ANY, style=wx.LC_REPORT |
+                wx.SUNKEN_BORDER)
+        self.EnableCheckBoxes(True)
 
-    def OnDropFiles(self, x, y, filenames):
-        if len(filenames) != 1:
-            return True
+class NoCheckListCtrl(wx.ListCtrl):
 
-        GlobalVariables.input_path = str(Path(filenames[0]))
-        GlobalVariables.file_input_textbox.SetValue(GlobalVariables.input_path)
+    def __init__(self, parent):
+        wx.ListCtrl.__init__(self, parent, wx.ID_ANY, style=wx.LC_REPORT |
+                wx.SUNKEN_BORDER)
+        self.EnableCheckBoxes(False)
+
+
+def is_file_enabled(path):
+    if os.path.isfile(GlobalVariables.game_directory + "\\" +path):
         return True
-
-
-class FileDropOutput(wx.FileDropTarget):
-
-    def __init__(self, window):
-        wx.FileDropTarget.__init__(self)
-        self.window = window
-
-    def OnDropFiles(self, x, y, filenames):
-        if len(filenames) != 1:
-            return True
-
-        GlobalVariables.output_path = str(Path(filenames[0]))
-        GlobalVariables.file_output_textbox.SetValue(GlobalVariables.output_path)
-        return True
-
-#
-# For PAKing
-#
-def PAK():
-    if not can_PAK():
-        return
-
-    unrealpak_path = Path("UnrealPaker\\Engine\\Binaries\\Win64\\UnrealPak.exe")
-    base_file_name = GlobalVariables.input_path.split("\\")[-1].split(".")[0]
-    file_list = Path("UnrealPaker\\Engine\\Binaries\\Win64\\filelist.txt")
-
-    # Create filelist
-    subprocess.Popen(
-        f'@echo "{Path(GlobalVariables.output_path)}\\{base_file_name}\*.*" "../../../{GlobalVariables.game_name}/" > "{file_list}"',
-        shell=True)
-
-    cmd = f'"{unrealpak_path}" "{Path(GlobalVariables.output_path)}\\{base_file_name}.pak" -create="{os.path.abspath(file_list)}" -compress'
-
-    # Create pak file
-    output = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout
-
-    split_lines = output.read().decode().split("\n")
-    for line in split_lines:
-        if "Warning" in line:
-            add_console_message(line + "\n", '#FFA500')
-        elif "Error" in line:
-            add_console_message(line + "\n", wx.RED)
-        elif "executed" in line:
-            add_console_message(line + "\n", wx.GREEN)
-        else:
-            add_console_message(line + "\n")
-
-#
-# For UNPAKing
-#
-def UNPAK():
-    if not can_UNPAK():
-        return
-
-    unrealpak_path = Path("UnrealPaker\\Engine\\Binaries\\Win64\\UnrealPak.exe")
-    base_file_name = GlobalVariables.input_path.split("\\")[-1].split(".")[0]
-
-    cmd = f' "{unrealpak_path}" "{GlobalVariables.input_path}" -extract "{GlobalVariables.output_path}\\{base_file_name}"'
-
-    # UNPAK file
-    output = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout
-
-    split_lines = output.read().decode().split("\n")
-    for line in split_lines:
-        if "Warning" in line:
-            add_console_message(line + "\n", '#FFA500')
-        elif "Error" in line:
-            add_console_message(line + "\n", wx.RED)
-        elif "executed" in line:
-            add_console_message(line + "\n", wx.GREEN)
-        else:
-            add_console_message(line + "\n")
-
-
-#
-# Add a console message.
-#
-def add_console_message(text, color=wx.WHITE, spacers=False):
-    GlobalVariables.console_textbox.SetDefaultStyle(wx.TextAttr(color))
-    if spacers:
-        GlobalVariables.console_textbox.AppendText("\n")
-    GlobalVariables.console_textbox.AppendText(text)
-    if spacers:
-        GlobalVariables.console_textbox.AppendText("\n")
-
-
-#
-# Check if can PAK
-#
-def can_PAK():
-    if len(GlobalVariables.file_input_textbox.GetValue()) == 0:
-        add_console_message("Input is empty.\n", wx.RED)
+    elif os.path.isfile(GlobalVariables.game_directory + "\\" +path + ".old"):
         return False
-    if len(GlobalVariables.file_output_textbox.GetValue()) == 0:
-        add_console_message("Output is empty.\n", wx.RED)
-        return False
-    if "." in GlobalVariables.file_output_textbox.GetValue():
-        add_console_message("Output contains a file, not folder.\n", wx.RED)
-        return False
-    if "." in GlobalVariables.file_input_textbox.GetValue():
-        add_console_message("Input contains a file, not folder.\n", wx.RED)
+    else:
         return False
 
-    return True
+
+def enable_mod(path):
+    if os.path.isfile(GlobalVariables.game_directory + "\\" + path + ".old"):
+        os.rename(GlobalVariables.game_directory + "\\" + path + ".old", GlobalVariables.game_directory + "\\" + path)
 
 
-#
-# Check if can UNPAK
-#
-def can_UNPAK():
-    if len(GlobalVariables.file_input_textbox.GetValue()) == 0:
-        add_console_message("Input is empty.\n", wx.RED)
-        return False
-    if len(GlobalVariables.file_output_textbox.GetValue()) == 0:
-        add_console_message("Output is empty.\n", wx.RED)
-        return False
-    if "." in GlobalVariables.file_output_textbox.GetValue():
-        add_console_message("Output contains a file, not folder.\n", wx.RED)
-        return False
-    if "." not in GlobalVariables.file_input_textbox.GetValue():
-        add_console_message("Input contains a folder, not file.\n", wx.RED)
-        return False
-
-    return True
+def disable_mod(path):
+    if os.path.isfile(GlobalVariables.game_directory + "\\" + path):
+        os.rename(GlobalVariables.game_directory + "\\" + path, GlobalVariables.game_directory + "\\" + path + ".old")
 
 
-class QuantumPAK(wx.Frame):
+def get_mods():
+    temp = []
+    with os.scandir(GlobalVariables.game_directory) as dirs:
+        for dir in dirs:
+            if dir.name != "pakchunk0-WindowsNoEditor.pak" and dir.name != "pakchunk0-WindowsNoEditor_0_P.pak":
+                temp.append(dir.path)
+    return temp
+
+
+def get_profiles():
+    path = r"Profiles"
+    temp = []
+    with os.scandir(path) as dirs:
+        for dir in dirs:
+                temp.append(dir.name.split(".")[0])
+    return temp
+
+
+def refresh_mods():
+
+    GlobalVariables.mods_list.clear()
+    mods = get_mods();
+
+    for mod in mods:
+        name = mod.split("\\")[-1].split("-")[1].split(".")[0].replace("_P", "").replace("Mods_", "").replace("_", " ")
+        path = mod.replace(".old", "")
+        GlobalVariables.mods_list.append( (name, str(round(os.path.getsize(mod)/1000000, 2)) + " MB", path.split("\\")[-1]) )
+
+    GlobalVariables.mod_selector.DeleteAllItems()
+
+    idx = 0
+    for i in GlobalVariables.mods_list:
+
+        index = GlobalVariables.mod_selector.InsertItem(idx, i[0])
+        GlobalVariables.mod_selector.SetItem(index, 1, str(i[1]))
+        GlobalVariables.mod_selector.SetItem(index, 2, str(i[2]))
+
+        # If the file is enabled.
+        if is_file_enabled(i[2]):
+            GlobalVariables.mod_selector.CheckItem(index)
+        idx += 1
+
+
+def refresh_profiles():
+    GlobalVariables.profile_selector.DeleteAllItems()
+    idx = 0
+    for i in get_profiles():
+        index = GlobalVariables.profile_selector.InsertItem(idx, i)
+        idx += 1
+
+
+
+class ModManager(wx.Frame):
 
     def __init__(self, *args, **kw):
-        super(QuantumPAK, self).__init__(size=(400, 500), *args, **kw)
+        super(ModManager, self).__init__(size=(700, 500),*args, **kw)
 
-        self.SetTitle('QuantumModManager')
-        self.Centre()
-        self.init_gui()
-
-    def init_gui(self):
-
-        # Init Panel
         panel = wx.Panel(self)
-        panel.SetBackgroundColour('#333')
 
         # Set Font
         font = wx.SystemSettings.GetFont(wx.SYS_SYSTEM_FONT)
-
-        # Set Font Size
         font.SetPointSize(9)
 
-        # Set Overall BoxSizer Layout
-        outer_box = wx.BoxSizer(wx.VERTICAL)
+        vbox = wx.BoxSizer(wx.VERTICAL)
+        outer_horz = wx.BoxSizer(wx.HORIZONTAL)
+
+        leftPanel = wx.Panel(panel)
+        rightPanel = wx.Panel(panel)
+
+        #self.log = wx.TextCtrl(rightPanel, style=wx.TE_MULTILINE|wx.TE_READONLY)
+        GlobalVariables.mod_selector = CheckListCtrl(rightPanel)
+        GlobalVariables.mod_selector.InsertColumn(0, 'Mod', width=140)
+        GlobalVariables.mod_selector.InsertColumn(1, 'Size')
+        GlobalVariables.mod_selector.InsertColumn(2, 'Full Name')
 
 
-        ###########
-        ## NAMES ##
-        ###########
-        name_horz = wx.BoxSizer(wx.HORIZONTAL)
+        GlobalVariables.profile_selector = NoCheckListCtrl(rightPanel)
+        GlobalVariables.profile_selector.InsertColumn(0, 'Profile')
+        GlobalVariables.profile_selector.Bind(wx.EVT_LIST_ITEM_SELECTED, self.ProfileClick)
 
-        pak_text = wx.StaticText(panel, label='Input')
-        pak_text.SetFont(font)
-        pak_text.SetForegroundColour("#FFF")
+        #
+        # Left Panel
+        #
+        vbox2 = wx.BoxSizer(wx.VERTICAL)
 
-        unpak_text = wx.StaticText(panel, label='Output')
-        unpak_text.SetFont(font)
-        unpak_text.SetForegroundColour("#FFF")
+        selBtn = wx.Button(leftPanel, label='Select All')
+        desBtn = wx.Button(leftPanel, label='Deselect All')
+        refresh_button = wx.Button(leftPanel, label='Refresh')
+        appBtn = wx.Button(leftPanel, label='Apply Changes')
+        game_path_button = wx.Button(leftPanel, label='Change Game Path')
 
-        name_horz.Add(pak_text, proportion=1)
-        name_horz.Add(unpak_text, proportion=1)
-
-        outer_box.Add(name_horz, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=10)
-
-
-        ###########################
-        ## Input Output Text Box ##
-        ###########################
-        text_ctrl_horz = wx.BoxSizer(wx.HORIZONTAL)
-
-        # Input Text Box
-        GlobalVariables.file_input_textbox = wx.TextCtrl(panel)
-        GlobalVariables.file_input_textbox.SetValue(GlobalVariables.input_path)
-        GlobalVariables.file_input_textbox.SetDropTarget(FileDropInput(panel))
-        GlobalVariables.file_input_textbox.SetForegroundColour("#FFF")
-        GlobalVariables.file_input_textbox.SetBackgroundColour("#333")
-
-        # Output Text Box
-        GlobalVariables.file_output_textbox = wx.TextCtrl(panel)
-        GlobalVariables.file_output_textbox.SetValue(GlobalVariables.output_path)
-        GlobalVariables.file_output_textbox.SetDropTarget(FileDropInput(panel))
-        GlobalVariables.file_output_textbox.SetForegroundColour("#FFF")
-        GlobalVariables.file_output_textbox.SetBackgroundColour("#333")
-
-        text_ctrl_horz.Add(GlobalVariables.file_input_textbox, proportion=1)
-        text_ctrl_horz.Add(GlobalVariables.file_output_textbox, proportion=1)
-
-        outer_box.Add(text_ctrl_horz, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=10)
-
-        #######################
-        ## SELECTION BUTTONS ##
-        #######################
-        select_button_horz = wx.BoxSizer(wx.HORIZONTAL)
-
-        # File Selection Button
-        file_input_selection = wx.Button(panel, -1, "Select File")
-        file_input_selection.Bind(wx.EVT_BUTTON, self.OpenInputSelector)
-        file_input_selection.SetDropTarget(FileDropInput(panel))
-        file_input_selection.SetForegroundColour("#FFF")
-        file_input_selection.SetBackgroundColour("#333")
-
-        # Folder Selection Button
-        file_input_selection_f = wx.Button(panel, -1, "Select Folder")
-        file_input_selection_f.Bind(wx.EVT_BUTTON, self.OpenInputSelectorFolder)
-        file_input_selection_f.SetDropTarget(FileDropInput(panel))
-        file_input_selection_f.SetForegroundColour("#FFF")
-        file_input_selection_f.SetBackgroundColour("#333")
-
-        # File Selection Button
-        file_output_selection = wx.Button(panel, -1, "Select Folder")
-        file_output_selection.Bind(wx.EVT_BUTTON, self.OpenOutputSelector)
-        file_output_selection.SetDropTarget(FileDropOutput(panel))
-        file_output_selection.SetForegroundColour("#FFF")
-        file_output_selection.SetBackgroundColour("#333")
-
-        select_button_horz.Add(file_input_selection, proportion=1)
-        select_button_horz.Add(file_input_selection_f, proportion=1)
-        select_button_horz.Add(file_output_selection, proportion=2)
-        outer_box.Add(select_button_horz, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=10)
-
-        #################
-        ## DRAG AREAS ###
-        #################
-        drag_areas_horz = wx.BoxSizer(wx.HORIZONTAL)
-
-        # Input Drag and Drop
-        input_drag_box = wx.StaticBox(panel, label="Drag n' Drop")
-        input_drag_box.SetDropTarget(FileDropInput(panel))
-        input_drag_box.SetBackgroundColour("#333")
-        input_drag_box.SetForegroundColour("#FFF")
-
-        # Output Drag and Drop
-        output_drag_box = wx.StaticBox(panel, label="Drag n' Drop")
-        output_drag_box.SetDropTarget(FileDropOutput(panel))
-        output_drag_box.SetBackgroundColour("#333")
-        output_drag_box.SetForegroundColour("#FFF")
-
-        drag_areas_horz.Add(input_drag_box, proportion=1, flag=wx.EXPAND)
-        drag_areas_horz.Add(output_drag_box, proportion=1, flag=wx.EXPAND)
-        outer_box.Add(drag_areas_horz, proportion=1, flag=wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, border=10)
+        selBtn.Bind(wx.EVT_BUTTON, self.OnSelectAll)
+        desBtn.Bind(wx.EVT_BUTTON, self.OnDeselectAll)
+        refresh_button.Bind(wx.EVT_BUTTON, self.OnRefresh)
+        appBtn.Bind(wx.EVT_BUTTON, self.OnApply)
+        game_path_button.Bind(wx.EVT_BUTTON, self.ChangeGamePath)
 
 
-        #######################
-        ## PAK UNPAK Buttons ##
-        #######################
-        pak_horz = wx.BoxSizer(wx.HORIZONTAL)
+        vbox2.Add(selBtn, flag=wx.ALIGN_CENTER)
+        vbox2.Add(desBtn, flag=wx.ALIGN_CENTER)
+        vbox2.Add(refresh_button, flag=wx.ALIGN_CENTER)
+        vbox2.Add(game_path_button, flag=wx.ALIGN_CENTER)
+        vbox2.Add(appBtn, flag=wx.ALIGN_CENTER)
 
-        # PAK Button
-        pakButton = wx.Button(panel, label='PAK', size=(100, 50))
-        pakButton.Bind(wx.EVT_BUTTON, self.PAKEvent)
-        pakButton.SetForegroundColour("#FFF")
-        pakButton.SetBackgroundColour("#333")
+        leftPanel.SetSizer(vbox2)
 
-        # UNPAK Button
-        unpakButton = wx.Button(panel, label='UNPACK', size=(100, 50))
-        unpakButton.Bind(wx.EVT_BUTTON, self.UNPAKEvent)
-        unpakButton.SetForegroundColour("#FFF")
-        unpakButton.SetBackgroundColour("#333")
+        #
+        # Right Panel
+        #
+        vbox.Add(GlobalVariables.mod_selector, 4, wx.EXPAND | wx.TOP, 3)
+        vbox.Add((-1, 10))
+        # vbox.Add(self.log, 1, wx.EXPAND)
+        # vbox.Add((-1, 10))
+        vbox.Add(wx.StaticText(rightPanel, label="Profiles"))
+        vbox.Add(GlobalVariables.profile_selector, 4, wx.EXPAND | wx.BOTTOM, 3)
 
-        pak_horz.Add(pakButton, proportion=1)
-        pak_horz.Add(unpakButton, proportion=1)
-        outer_box.Add(pak_horz, flag=wx.EXPAND | wx.RIGHT | wx.LEFT | wx.BOTTOM, border=7)
+        #
+        # Profile Buttons
+        #
+        profile_options = wx.BoxSizer(wx.HORIZONTAL)
+        self.load_profile = wx.Button(rightPanel, label="Load Profile")
+        self.save_profile = wx.Button(rightPanel, label="Save Profile")
+        GlobalVariables.profile_textctrl = wx.TextCtrl(rightPanel)
+        self.load_profile.Bind(wx.EVT_BUTTON, self.LoadProfile)
+        self.save_profile.Bind(wx.EVT_BUTTON, self.SaveProfile)
 
-        #############
-        ## Console ##
-        #############
-        console_horz = wx.BoxSizer(wx.HORIZONTAL)
-
-        console_text = wx.StaticText(panel, label='Console')
-        console_text.SetFont(font)
-        console_text.SetForegroundColour("#FFF")
-
-        console_horz.Add(console_text)
-        outer_box.Add(console_horz, flag=wx.LEFT | wx.TOP, border=10)
-
-        console2_horz = wx.BoxSizer(wx.HORIZONTAL)
-        GlobalVariables.console_textbox = wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH)
-        GlobalVariables.console_textbox.SetBackgroundColour("#333")
-
-        console2_horz.Add(GlobalVariables.console_textbox, proportion=1, flag=wx.EXPAND)
-        outer_box.Add(console2_horz, proportion=1, flag=wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.EXPAND, border=10)
+        profile_options.Add(self.load_profile)
+        profile_options.Add(self.save_profile)
+        profile_options.Add(GlobalVariables.profile_textctrl, proportion=1)
 
 
-        # Add outer box to panel.
-        panel.SetSizer(outer_box)
+        vbox.Add(profile_options, flag = wx.EXPAND | wx.TOP | wx.BOTTOM, border = 5)
 
-    #
-    # On PAK Button Press
-    #
-    def PAKEvent(self, event):
-        PAK()
+        rightPanel.SetSizer(vbox)
 
-    def UNPAKEvent(self, event):
-        UNPAK()
+        # Add left and right panels to main sizer
+        outer_horz.Add(leftPanel, 0, wx.EXPAND | wx.RIGHT, 5)
+        outer_horz.Add(rightPanel, 1, wx.EXPAND)
+        outer_horz.Add((3, -1))
 
-    #
-    # On --put Button Press
-    #
-    def OpenOutputSelector(self, event):
-        dialog = wx.DirDialog(None, "Choose a directory/file:",
+        # Add main sizer to main panel
+        panel.SetSizer(outer_horz)
+
+        # Final window changes
+        self.SetTitle('Quantum Mod Manager')
+        self.Centre()
+
+        if GlobalVariables.game_directory == "":
+            self.ChangeGamePath(None)
+
+        refresh_mods()
+        refresh_profiles()
+
+
+    def OnSelectAll(self, event):
+
+        num = GlobalVariables.mod_selector.GetItemCount()
+        for i in range(num):
+            GlobalVariables.mod_selector.CheckItem(i)
+
+
+    def OnDeselectAll(self, event):
+
+        num = GlobalVariables.mod_selector.GetItemCount()
+        for i in range(num):
+            GlobalVariables.mod_selector.CheckItem(i, False)
+
+
+    def OnApply(self, event):
+
+        num = GlobalVariables.mod_selector.GetItemCount()
+
+        for i in range(num):
+
+            if GlobalVariables.mod_selector.IsItemChecked(i):
+                enable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
+            else:
+                disable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
+
+
+    def LoadProfile(self, event):
+        profile_name = GlobalVariables.profile_textctrl.GetValue()
+        if profile_name == "":
+            return
+
+        refresh_mods()
+
+        file = open("Profiles\\" + profile_name + ".json", "r")
+        enabled_mods = json.load(file).keys()
+
+        for i in range(GlobalVariables.mod_selector.GetItemCount()):
+            if GlobalVariables.mod_selector.GetItemText(i, 2) in enabled_mods:
+                GlobalVariables.mod_selector.CheckItem(i, True)
+                #enable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
+            else:
+                GlobalVariables.mod_selector.CheckItem(i, False)
+                #disable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
+
+        file.close()
+
+
+    def SaveProfile(self, event):
+        profile_name = GlobalVariables.profile_textctrl.GetValue()
+        if profile_name == "":
+            return
+
+        file = open("Profiles\\" + profile_name + ".json", "w")
+        mods_dict = {}
+        for i in range(GlobalVariables.mod_selector.GetItemCount()):
+            if GlobalVariables.mod_selector.IsItemChecked(i):
+                mods_dict[GlobalVariables.mod_selector.GetItemText(i, 2)] = True
+        json.dump(mods_dict, file)
+        file.close()
+
+        refresh_profiles()
+
+
+    def ProfileClick(self, event):
+        GlobalVariables.profile_textctrl.SetValue(event.GetText())
+
+
+    def ChangeGamePath(self, event):
+        dialog = wx.DirDialog(None, "Select Paks Folder",
                               style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
         if dialog.ShowModal() == wx.ID_OK:
-            GlobalVariables.output_path = dialog.GetPath()
-            GlobalVariables.file_output_textbox.SetValue(GlobalVariables.output_path)
+            print(type(dialog.GetPath()))
+            GlobalVariables.game_directory = dialog.GetPath()
+
+            json_data = {}
+            json_data["game_directory"] = GlobalVariables.game_directory
+            json.dump(json_data, open("Settings.ini", "w"))
+
         dialog.Destroy()
 
-    def OpenInputSelector(self, event):
-        dialog = wx.FileDialog(None, "Choose a directory/file:",
-                               style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON, wildcard="PAK files (*.pak)|*.pak")
-        if dialog.ShowModal() == wx.ID_OK:
-            GlobalVariables.input_path = dialog.GetPath()
-            GlobalVariables.file_input_textbox.SetValue(GlobalVariables.input_path)
-        dialog.Destroy()
+    def OnRefresh(self, event):
+        refresh_mods()
 
-    def OpenInputSelectorFolder(self, event):
-        dialog = wx.DirDialog(None, "Choose a directory/file:",
-                              style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
-        if dialog.ShowModal() == wx.ID_OK:
-            GlobalVariables.input_path = dialog.GetPath()
-            GlobalVariables.file_input_textbox.SetValue(GlobalVariables.input_path)
-        dialog.Destroy()
-
-
-#
-# Main Function.
-#
 def main():
 
     # Read or Create Config
     if os.path.isfile("Settings.ini"):
         json_data = json.load(open("Settings.ini", "r"))
-        GlobalVariables.game_name = json_data["game_name"]
-        GlobalVariables.input_path = json_data["input_path"]
-        GlobalVariables.output_path = json_data["output_path"]
+        GlobalVariables.game_directory = json_data["game_directory"]
     else:
         json_data = {}
-        json_data["game_name"] = "ReadyOrNot"
-        json_data["input_path"] = ""
-        json_data["output_path"] = ""
+        json_data["game_directory"] = ""
         json.dump(json_data, open("Settings.ini", "w"))
 
-
-
-    # Create Visual
     app = wx.App()
-    ex = QuantumPAK(None)
+    ex = ModManager(None)
     ex.Show()
     app.MainLoop()
-
 
 if __name__ == '__main__':
     main()
