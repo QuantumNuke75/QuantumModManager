@@ -311,6 +311,7 @@ class ModManager(wx.Frame):
 
         dialog.Destroy()
 
+
     def OnRefresh(self, event):
         refresh_mods()
 
