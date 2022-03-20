@@ -119,28 +119,60 @@ class ModManager(wx.Frame):
         #
         # Left Panel
         #
-        vbox2 = wx.BoxSizer(wx.VERTICAL)
 
-        selBtn = wx.Button(leftPanel, label='Select All')
-        desBtn = wx.Button(leftPanel, label='Deselect All')
-        refresh_button = wx.Button(leftPanel, label='Refresh')
-        appBtn = wx.Button(leftPanel, label='Apply Changes')
+        left_panel_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        #
+        # Mod Settings
+        #
+        mod_settings_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        select_all_mod = wx.Button(leftPanel, label='Select All')
+        deselect_all_mod = wx.Button(leftPanel, label='Deselect All')
+        refresh_mod = wx.Button(leftPanel, label='Refresh')
+        apply_mod = wx.Button(leftPanel, label='Apply Changes')
         game_path_button = wx.Button(leftPanel, label='Change Game Path')
 
-        selBtn.Bind(wx.EVT_BUTTON, self.OnSelectAll)
-        desBtn.Bind(wx.EVT_BUTTON, self.OnDeselectAll)
-        refresh_button.Bind(wx.EVT_BUTTON, self.OnRefresh)
-        appBtn.Bind(wx.EVT_BUTTON, self.OnApply)
+        select_all_mod.Bind(wx.EVT_BUTTON, self.OnSelectAll)
+        deselect_all_mod.Bind(wx.EVT_BUTTON, self.OnDeselectAll)
+        refresh_mod.Bind(wx.EVT_BUTTON, self.OnRefresh)
+        apply_mod.Bind(wx.EVT_BUTTON, self.OnApply)
         game_path_button.Bind(wx.EVT_BUTTON, self.ChangeGamePath)
 
 
-        vbox2.Add(selBtn, flag=wx.ALIGN_CENTER)
-        vbox2.Add(desBtn, flag=wx.ALIGN_CENTER)
-        vbox2.Add(refresh_button, flag=wx.ALIGN_CENTER)
-        vbox2.Add(game_path_button, flag=wx.ALIGN_CENTER)
-        vbox2.Add(appBtn, flag=wx.ALIGN_CENTER)
+        mod_settings_sizer.Add(select_all_mod, flag=wx.ALIGN_CENTER)
+        mod_settings_sizer.Add(deselect_all_mod, flag=wx.ALIGN_CENTER)
+        mod_settings_sizer.Add(refresh_mod, flag=wx.ALIGN_CENTER)
+        mod_settings_sizer.Add(game_path_button, flag=wx.ALIGN_CENTER)
+        mod_settings_sizer.Add(apply_mod, flag=wx.ALIGN_CENTER)
 
-        leftPanel.SetSizer(vbox2)
+        # Profile Settings
+        panel_settings_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        # select_all_mod = wx.Button(leftPanel, label='Select All')
+        # deselect_all_mod = wx.Button(leftPanel, label='Deselect All')
+        # refresh_mod = wx.Button(leftPanel, label='Refresh')
+        # apply_mod = wx.Button(leftPanel, label='Apply Changes')
+        # game_path_button = wx.Button(leftPanel, label='Change Game Path')
+        #
+        # select_all_mod.Bind(wx.EVT_BUTTON, self.OnSelectAll)
+        # deselect_all_mod.Bind(wx.EVT_BUTTON, self.OnDeselectAll)
+        # refresh_mod.Bind(wx.EVT_BUTTON, self.OnRefresh)
+        # apply_mod.Bind(wx.EVT_BUTTON, self.OnApply)
+        # game_path_button.Bind(wx.EVT_BUTTON, self.ChangeGamePath)
+        #
+        #
+        # panel_settings_sizer.Add(select_all_mod, flag=wx.ALIGN_CENTER)
+        # panel_settings_sizer.Add(deselect_all_mod, flag=wx.ALIGN_CENTER)
+        # panel_settings_sizer.Add(refresh_mod, flag=wx.ALIGN_CENTER)
+        # panel_settings_sizer.Add(game_path_button, flag=wx.ALIGN_CENTER)
+        # panel_settings_sizer.Add(apply_mod, flag=wx.ALIGN_CENTER)
+
+
+        left_panel_sizer.Add(mod_settings_sizer, proportion=1)
+        left_panel_sizer.Add(panel_settings_sizer, proportion=1)
+
+        leftPanel.SetSizer(left_panel_sizer)
 
         #
         # Right Panel
@@ -158,12 +190,15 @@ class ModManager(wx.Frame):
         profile_options = wx.BoxSizer(wx.HORIZONTAL)
         self.load_profile = wx.Button(rightPanel, label="Load Profile")
         self.save_profile = wx.Button(rightPanel, label="Save Profile")
+        self.delete_profile = wx.Button(rightPanel, label="Delete Profile")
         GlobalVariables.profile_textctrl = wx.TextCtrl(rightPanel)
         self.load_profile.Bind(wx.EVT_BUTTON, self.LoadProfile)
         self.save_profile.Bind(wx.EVT_BUTTON, self.SaveProfile)
+        self.delete_profile.Bind(wx.EVT_BUTTON, self.DeleteProfile)
 
         profile_options.Add(self.load_profile)
         profile_options.Add(self.save_profile)
+        profile_options.Add(self.delete_profile)
         profile_options.Add(GlobalVariables.profile_textctrl, proportion=1)
 
 
@@ -252,6 +287,12 @@ class ModManager(wx.Frame):
 
         refresh_profiles()
 
+    def DeleteProfile(self, event):
+        profile_name = GlobalVariables.profile_textctrl.GetValue()
+        if profile_name == "":
+            return
+        os.remove("Profiles\\" + profile_name + ".json")
+        refresh_profiles()
 
     def ProfileClick(self, event):
         GlobalVariables.profile_textctrl.SetValue(event.GetText())
