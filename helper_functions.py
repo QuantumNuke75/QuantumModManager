@@ -42,7 +42,6 @@ def get_profiles():
 
 
 def get_steam_dir():
-
         # Python suuuuucks...
         possible_game_path = [None]
 
