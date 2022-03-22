@@ -3,29 +3,28 @@ import os
 
 import wx
 
-import GlobalVariables
-import HelperFunctions
+import helper_functions
 
 
 class CheckListCtrl(wx.ListCtrl):
 
     def __init__(self, parent):
-        wx.ListCtrl.__init__(self, parent, wx.ID_ANY, style=wx.LC_REPORT |
-                wx.SUNKEN_BORDER)
+        wx.ListCtrl.__init__(self, parent, wx.ID_ANY, style=wx.LC_REPORT | wx.SUNKEN_BORDER)
         self.EnableCheckBoxes(True)
 
 class NoCheckListCtrl(wx.ListCtrl):
 
     def __init__(self, parent):
-        wx.ListCtrl.__init__(self, parent, wx.ID_ANY, style=wx.LC_REPORT |
-                wx.SUNKEN_BORDER)
+        wx.ListCtrl.__init__(self, parent, wx.ID_ANY, style=wx.LC_REPORT | wx.SUNKEN_BORDER)
         self.EnableCheckBoxes(False)
 
 
 class ModManager(wx.Frame):
 
-    def __init__(self, *args, **kw):
+    def __init__(self, main, *args, **kw):
         super(ModManager, self).__init__(size=(700, 500),*args, **kw)
+
+        self.main = main
 
         panel = wx.Panel(self)
 
@@ -40,15 +39,15 @@ class ModManager(wx.Frame):
         rightPanel = wx.Panel(panel)
 
         #self.log = wx.TextCtrl(rightPanel, style=wx.TE_MULTILINE|wx.TE_READONLY)
-        GlobalVariables.mod_selector = CheckListCtrl(rightPanel)
-        GlobalVariables.mod_selector.InsertColumn(0, 'Mod', width=140)
-        GlobalVariables.mod_selector.InsertColumn(1, 'Size')
-        GlobalVariables.mod_selector.InsertColumn(2, 'Full Name')
+        self.mod_selector = CheckListCtrl(rightPanel)
+        self.mod_selector.InsertColumn(0, 'Mod', width=140)
+        self.mod_selector.InsertColumn(1, 'Size')
+        self.mod_selector.InsertColumn(2, 'Full Name')
 
 
-        GlobalVariables.profile_selector = NoCheckListCtrl(rightPanel)
-        GlobalVariables.profile_selector.InsertColumn(0, 'Profile')
-        GlobalVariables.profile_selector.Bind(wx.EVT_LIST_ITEM_SELECTED, self.ProfileClick)
+        self.profile_selector = NoCheckListCtrl(rightPanel)
+        self.profile_selector.InsertColumn(0, 'Profile')
+        self.profile_selector.Bind(wx.EVT_LIST_ITEM_SELECTED, self.ProfileClick)
 
         #
         # Left Panel
@@ -87,8 +86,9 @@ class ModManager(wx.Frame):
         mod_settings_sizer.Add(run_ready_or_not, flag=wx.ALIGN_CENTER)
 
 
-
+        #
         # Profile Settings
+        #
         panel_settings_sizer = wx.BoxSizer(wx.VERTICAL)
 
         # select_all_mod = wx.Button(leftPanel, label='Select All')
@@ -119,11 +119,11 @@ class ModManager(wx.Frame):
         #
         # Right Panel
         #
-        vbox.Add(GlobalVariables.mod_selector, 4, wx.EXPAND | wx.TOP, 3)
+        vbox.Add(self.mod_selector, 4, wx.EXPAND | wx.TOP, 3)
         vbox.Add((-1, 10))
 
         vbox.Add(wx.StaticText(rightPanel, label="Profiles"))
-        vbox.Add(GlobalVariables.profile_selector, 4, wx.EXPAND | wx.BOTTOM, 3)
+        vbox.Add(self.profile_selector, 4, wx.EXPAND | wx.BOTTOM, 3)
 
         #
         # Profile Buttons
@@ -132,7 +132,7 @@ class ModManager(wx.Frame):
         self.load_profile = wx.Button(rightPanel, label="Load Profile")
         self.save_profile = wx.Button(rightPanel, label="Save Profile")
         self.delete_profile = wx.Button(rightPanel, label="Delete Profile")
-        GlobalVariables.profile_textctrl = wx.TextCtrl(rightPanel)
+        self.profile_textctrl = wx.TextCtrl(rightPanel)
         self.load_profile.Bind(wx.EVT_BUTTON, self.LoadProfile)
         self.save_profile.Bind(wx.EVT_BUTTON, self.SaveProfile)
         self.delete_profile.Bind(wx.EVT_BUTTON, self.DeleteProfile)
@@ -140,7 +140,7 @@ class ModManager(wx.Frame):
         profile_options.Add(self.load_profile)
         profile_options.Add(self.save_profile)
         profile_options.Add(self.delete_profile)
-        profile_options.Add(GlobalVariables.profile_textctrl, proportion=1)
+        profile_options.Add(self.profile_textctrl, proportion=1)
 
 
         vbox.Add(profile_options, flag = wx.EXPAND | wx.TOP | wx.BOTTOM, border = 5)
@@ -159,87 +159,134 @@ class ModManager(wx.Frame):
         self.SetTitle('Quantum Mod Manager')
         self.Centre()
 
-        if GlobalVariables.game_directory == "":
-            self.ChangeGamePath(None)
+        # If the game directory is not set.
+        if main.game_directory == "":
+            possible_path = helper_functions.get_steam_dir()
 
-        if GlobalVariables.game_directory == "":
+            if possible_path is None:
+                self.ChangeGamePath(None)
+            else:
+                self.main.game_directory = possible_path
+                json_data = {}
+                json_data["game_directory"] = self.main.game_directory
+                json.dump(json_data, open("Settings.ini", "w"))
+
+        if self.main.game_directory == "":
             quit()
 
-        HelperFunctions.refresh_mods()
-        HelperFunctions.refresh_profiles()
+        # Refresh all mods and profiles.
+        self.refresh_mods()
+        self.refresh_profiles()
 
 
+    def refresh_mods(self):
+        mods_list = []
+
+        mods_list.clear()
+        mods = helper_functions.get_mods(self.main);
+
+        for mod in mods:
+            name = mod.split("\\")[-1].split("-")[1].split(".")[0].replace("_P", "").replace("Mods_", "").replace("_",
+                                                                                                                  " ")
+            path = mod.replace(".old", "")
+            mods_list.append((name, str(round(os.path.getsize(mod) / 1000000, 2)) + " MB", path.split("\\")[-1]))
+
+        self.mod_selector.DeleteAllItems()
+
+        idx = 0
+        for i in mods_list:
+
+            index = self.mod_selector.InsertItem(idx, i[0])
+            self.mod_selector.SetItem(index, 1, str(i[1]))
+            self.mod_selector.SetItem(index, 2, str(i[2]))
+
+            # If the file is enabled.
+            if helper_functions.is_file_enabled(i[2], self.main):
+                self.mod_selector.CheckItem(index)
+            idx += 1
+
+    def refresh_profiles(self):
+        self.profile_selector.DeleteAllItems()
+        idx = 0
+        for i in helper_functions.get_profiles():
+            index = self.profile_selector.InsertItem(idx, i)
+            idx += 1
+
+
+    #
+    # Interact Events
+    #
     def OnSelectAll(self, event):
 
-        num = GlobalVariables.mod_selector.GetItemCount()
+        num = self.mod_selector.GetItemCount()
         for i in range(num):
-            GlobalVariables.mod_selector.CheckItem(i)
+            self.mod_selector.CheckItem(i)
 
 
     def OnDeselectAll(self, event):
 
-        num = GlobalVariables.mod_selector.GetItemCount()
+        num = self.mod_selector.GetItemCount()
         for i in range(num):
-            GlobalVariables.mod_selector.CheckItem(i, False)
+            self.mod_selector.CheckItem(i, False)
 
 
     def OnApply(self, event):
 
-        num = GlobalVariables.mod_selector.GetItemCount()
+        num = self.mod_selector.GetItemCount()
 
         for i in range(num):
 
-            if GlobalVariables.mod_selector.IsItemChecked(i):
-                HelperFunctions.enable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
+            if self.mod_selector.IsItemChecked(i):
+                helper_functions.enable_mod(self.mod_selector.GetItemText(i, 2), self.main)
             else:
-                HelperFunctions.disable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
+                helper_functions.disable_mod(self.mod_selector.GetItemText(i, 2), self.main)
 
 
     def LoadProfile(self, event):
-        profile_name = GlobalVariables.profile_textctrl.GetValue()
+        profile_name = self.profile_textctrl.GetValue()
         if profile_name == "":
             return
 
-        HelperFunctions.refresh_mods()
+        self.refresh_mods()
 
         file = open("Profiles\\" + profile_name + ".json", "r")
         enabled_mods = json.load(file).keys()
 
-        for i in range(GlobalVariables.mod_selector.GetItemCount()):
-            if GlobalVariables.mod_selector.GetItemText(i, 2) in enabled_mods:
-                GlobalVariables.mod_selector.CheckItem(i, True)
+        for i in range(self.mod_selector.GetItemCount()):
+            if self.mod_selector.GetItemText(i, 2) in enabled_mods:
+                self.mod_selector.CheckItem(i, True)
                 #enable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
             else:
-                GlobalVariables.mod_selector.CheckItem(i, False)
+                self.mod_selector.CheckItem(i, False)
                 #disable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
 
         file.close()
 
 
     def SaveProfile(self, event):
-        profile_name = GlobalVariables.profile_textctrl.GetValue()
+        profile_name = self.profile_textctrl.GetValue()
         if profile_name == "":
             return
 
         file = open("Profiles\\" + profile_name + ".json", "w")
         mods_dict = {}
-        for i in range(GlobalVariables.mod_selector.GetItemCount()):
-            if GlobalVariables.mod_selector.IsItemChecked(i):
-                mods_dict[GlobalVariables.mod_selector.GetItemText(i, 2)] = True
+        for i in range(self.mod_selector.GetItemCount()):
+            if self.mod_selector.IsItemChecked(i):
+                mods_dict[self.mod_selector.GetItemText(i, 2)] = True
         json.dump(mods_dict, file)
         file.close()
 
-        HelperFunctions.refresh_profiles()
+        self.refresh_profiles()
 
     def DeleteProfile(self, event):
-        profile_name = GlobalVariables.profile_textctrl.GetValue()
+        profile_name = self.profile_textctrl.GetValue()
         if profile_name == "":
             return
         os.remove("Profiles\\" + profile_name + ".json")
-        HelperFunctions.refresh_profiles()
+        self.refresh_profiles()
 
     def ProfileClick(self, event):
-        GlobalVariables.profile_textctrl.SetValue(event.GetText())
+        self.profile_textctrl.SetValue(event.GetText())
 
 
     def ChangeGamePath(self, event):
@@ -247,21 +294,21 @@ class ModManager(wx.Frame):
                               style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
         if dialog.ShowModal() == wx.ID_OK:
             print(type(dialog.GetPath()))
-            GlobalVariables.game_directory = dialog.GetPath()
+            self.main.game_directory = dialog.GetPath()
 
             json_data = {}
-            json_data["game_directory"] = GlobalVariables.game_directory
+            json_data["game_directory"] = self.main.game_directory
             json.dump(json_data, open("Settings.ini", "w"))
 
         dialog.Destroy()
 
 
     def OnRefresh(self, event):
-        HelperFunctions.refresh_mods()
+        self.refresh_mods()
 
 
     def RunReadyOrNot(self, event):
-        ron_path_split = GlobalVariables.game_directory.split("\\")
+        ron_path_split = self.main.game_directory.split("\\")
         print(ron_path_split)
         ron_path = ""
         for item in ron_path_split:
@@ -272,11 +319,3 @@ class ModManager(wx.Frame):
         print(ron_path)
         os.startfile(ron_path)
 
-
-    def AutoFindPath(self, event):
-        HelperFunctions.get_steam_dir()
-        if GlobalVariables.possible_game_path is not None:
-            GlobalVariables.game_directory = GlobalVariables.possible_game_path
-            json_data = {}
-            json_data["game_directory"] = GlobalVariables.game_directory
-            json.dump(json_data, open("Settings.ini", "w"))
