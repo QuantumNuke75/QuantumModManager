@@ -1,7 +1,4 @@
-import json
-import os
-
-import wx
+import json, os, wx, requests
 
 import helper_functions
 
@@ -25,6 +22,7 @@ class ModManager(wx.Frame):
         super(ModManager, self).__init__(size=(700, 500),*args, **kw)
 
         self.main = main
+        self.current_version = 1.3
 
         panel = wx.Panel(self)
 
@@ -145,6 +143,23 @@ class ModManager(wx.Frame):
 
         vbox.Add(profile_options, flag = wx.EXPAND | wx.TOP | wx.BOTTOM, border = 5)
 
+        #
+        # Version Warning
+        #
+        warning_pane = wx.BoxSizer(wx.HORIZONTAL)
+        response = None
+        try:
+            response = requests.get('https://unofficial-modding-guide.com/tools.html')
+        except:
+            ...
+        if response is not None and str(response.reason) == "OK":
+            version = float(str(response.content).split("Quantum Mod Manager")[1][2:5])
+            if version > self.current_version:
+                self.warning_message = wx.StaticText(rightPanel, label = "Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.zip")
+                warning_pane.Add(self.warning_message)
+
+        vbox.Add(warning_pane, flag=wx.EXPAND)
+
         rightPanel.SetSizer(vbox)
 
         # Add left and right panels to main sizer
@@ -160,7 +175,7 @@ class ModManager(wx.Frame):
         self.Centre()
 
         # If the game directory is not set.
-        if main.game_directory == "":
+        if self.main.game_directory is None:
             possible_path = helper_functions.get_steam_dir()
 
             if possible_path is None:

@@ -12,6 +12,7 @@ class Main:
         else:
             json_data = {}
             json_data["game_directory"] = ""
+            self.game_directory = None
             json.dump(json_data, open("Settings.ini", "w"))
 
         main_app = wx.App()
@@ -20,5 +21,4 @@ class Main:
         self.main_frame.Show()
 
         main_app.MainLoop()
-
 Main()

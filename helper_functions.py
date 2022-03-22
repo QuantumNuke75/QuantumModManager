@@ -69,3 +69,6 @@ def find_folder(path, possible_game_path, depth=0):
                     find_folder(file.path, possible_game_path, depth + 1)
         except:
             return
+
+def get_is_up_to_date():
+    ...
