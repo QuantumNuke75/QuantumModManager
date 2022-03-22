@@ -1,4 +1,5 @@
-game_directory = "C:\\Program Files (x86)\\Steam\\steamapps\common\\Ready Or Not\\"
+game_directory = ""
+possible_game_path = None
 
 profile_name = ""
 profile_textctrl = None
