@@ -34,6 +34,10 @@ def get_mods(main):
 def get_profiles():
     path = r"Profiles"
     temp = []
+
+    if not os.path.exists("Profiles"):
+        os.mkdir("Profiles")
+
     with os.scandir(path) as dirs:
         for dir in dirs:
             if ".json" in dir.name:
@@ -69,6 +73,3 @@ def find_folder(path, possible_game_path, depth=0):
                     find_folder(file.path, possible_game_path, depth + 1)
         except:
             return
-
-def get_is_up_to_date():
-    ...

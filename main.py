@@ -11,7 +11,7 @@ class Main:
             self.game_directory = json_data["game_directory"]
         else:
             json_data = {}
-            json_data["game_directory"] = ""
+            json_data["game_directory"] = None
             self.game_directory = None
             json.dump(json_data, open("Settings.ini", "w"))
 

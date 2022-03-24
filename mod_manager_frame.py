@@ -1,4 +1,5 @@
-import json, os, wx, requests
+import json, os, wx, requests, webbrowser
+import wx.grid
 
 import helper_functions
 
@@ -15,14 +16,59 @@ class NoCheckListCtrl(wx.ListCtrl):
         wx.ListCtrl.__init__(self, parent, wx.ID_ANY, style=wx.LC_REPORT | wx.SUNKEN_BORDER)
         self.EnableCheckBoxes(False)
 
+class ModFileDrop(wx.FileDropTarget):
+
+    def __init__(self, window, mod_manager):
+        wx.FileDropTarget.__init__(self)
+        self.window = window
+        self.mod_manager = mod_manager
+
+    def OnDropFiles(self, x, y, filenames):
+
+        for filename in filenames:
+            # # If the file is a compressed file, extract all the .paks and add them to the Pak directory.
+            # if filename.endswith(".zip") or filename.endswith(".7z") or filename.endswith(".rar"):
+            #
+            #     # Make temp folder.
+            #     if not os.path.isdir("temp"):
+            #         os.mkdir("temp")
+            #     patoolib.extract_archive(filename, outdir="temp")
+            #
+            #     # Get all files in folders and subfolders.
+            #     file_list = list()
+            #     for (dir, dir_names, file_names) in os.walk("temp"):
+            #         file_list += [os.path.join(dir, file) for file in file_names]
+            #
+            #     # For each file, if it's a .pak file, move it the Paks folder.
+            #     for file in file_list:
+            #         if file.endswith(".pak"):
+            #             if os.path.isfile(self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1]):
+            #                 os.remove(self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1])
+            #             os.rename(file, self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1])
+            #
+            #     # Delete everything in temp folder.
+            #     for file in os.scandir("temp"):
+            #         os.remove(file)
+            #
+
+            # If the file is a .pak file, add it to the Pak directory.
+            if filename.endswith(".pak"):
+                if os.path.isfile(self.mod_manager.main.game_directory + "\\" + filename.split("\\")[-1]):
+                    os.remove(self.mod_manager.main.game_directory + "\\" + filename.split("\\")[-1])
+                os.rename(filename, self.mod_manager.main.game_directory + "\\" + filename.split("\\")[-1])
+
+        self.mod_manager.refresh_mods()
+
+        return True
+
 
 class ModManager(wx.Frame):
 
     def __init__(self, main, *args, **kw):
-        super(ModManager, self).__init__(size=(700, 500),*args, **kw)
+        super(ModManager, self).__init__(size=(740, 500),*args, **kw)
 
         self.main = main
-        self.current_version = 1.3
+        self.current_version = 1.5
 
         panel = wx.Panel(self)
 
@@ -41,6 +87,8 @@ class ModManager(wx.Frame):
         self.mod_selector.InsertColumn(0, 'Mod', width=140)
         self.mod_selector.InsertColumn(1, 'Size')
         self.mod_selector.InsertColumn(2, 'Full Name')
+
+        self.mod_selector.SetDropTarget(ModFileDrop(rightPanel, self))
 
 
         self.profile_selector = NoCheckListCtrl(rightPanel)
@@ -155,8 +203,13 @@ class ModManager(wx.Frame):
         if response is not None and str(response.reason) == "OK":
             version = float(str(response.content).split("Quantum Mod Manager")[1][2:5])
             if version > self.current_version:
-                self.warning_message = wx.StaticText(rightPanel, label = "Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.zip")
-                warning_pane.Add(self.warning_message)
+                self.warning_message = wx.StaticText(rightPanel, label = "Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.exe")
+                self.warning_button = wx.Button(rightPanel, label="Download")
+
+                self.warning_button.Bind(wx.EVT_BUTTON, self.OpenWebPage)
+
+                warning_pane.Add(self.warning_message, flag=wx.TOP, border=7)
+                warning_pane.Add(self.warning_button, flag=wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.TOP, border=5)
 
         vbox.Add(warning_pane, flag=wx.EXPAND)
 
@@ -175,7 +228,7 @@ class ModManager(wx.Frame):
         self.Centre()
 
         # If the game directory is not set.
-        if self.main.game_directory is None:
+        if self.main.game_directory is None or self.main.game_directory == "":
             possible_path = helper_functions.get_steam_dir()
 
             if possible_path is None:
@@ -186,7 +239,7 @@ class ModManager(wx.Frame):
                 json_data["game_directory"] = self.main.game_directory
                 json.dump(json_data, open("Settings.ini", "w"))
 
-        if self.main.game_directory == "":
+        if self.main.game_directory == None:
             quit()
 
         # Refresh all mods and profiles.
@@ -333,4 +386,7 @@ class ModManager(wx.Frame):
         ron_path += "\\Binaries\\Win64\\ReadyOrNot-Win64-Shipping.exe"
         print(ron_path)
         os.startfile(ron_path)
+
+    def OpenWebPage(self, event):
+        webbrowser.open('http://unofficial-modding-guide.com/downloads/QuantumModManager.exe')
 
