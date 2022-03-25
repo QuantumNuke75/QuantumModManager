@@ -1,25 +1,10 @@
-import json, os, wx, requests, sys
-
-import wx.grid
+import json, os, wx, requests, sys, re, shutil,subprocess
 from py7zr import unpack_7zarchive
-import shutil
-from sys import argv
-import subprocess
+import wx.lib.agw.ultimatelistctrl as wxu
 
 import helper_functions
 
-
-class CheckListCtrl(wx.ListCtrl):
-
-    def __init__(self, parent):
-        wx.ListCtrl.__init__(self, parent, wx.ID_ANY, style=wx.LC_REPORT | wx.SUNKEN_BORDER)
-        self.EnableCheckBoxes(True)
-
-class NoCheckListCtrl(wx.ListCtrl):
-
-    def __init__(self, parent):
-        wx.ListCtrl.__init__(self, parent, wx.ID_ANY, style=wx.LC_REPORT | wx.SUNKEN_BORDER)
-        self.EnableCheckBoxes(False)
+#-----------------------------------------------------------------------------------------------------------------------
 
 class ModFileDrop(wx.FileDropTarget):
 
@@ -80,18 +65,20 @@ class ModFileDrop(wx.FileDropTarget):
         self.mod_manager.refresh_mods()
         return True
 
+#-----------------------------------------------------------------------------------------------------------------------
 
 class ModManager(wx.Frame):
 
     def __init__(self, main, *args, **kw):
         super(ModManager, self).__init__(size=(740, 500),*args, **kw)
-
         shutil.register_unpack_format('7zip', ['.7z'], unpack_7zarchive)
 
         self.main = main
-        self.current_version = 1.8
+        self.current_version = 2.0
 
+        # Panel
         panel = wx.Panel(self)
+        panel.SetBackgroundColour("#333")
 
         # Set Font
         font = wx.SystemSettings.GetFont(wx.SYS_SYSTEM_FONT)
@@ -103,17 +90,27 @@ class ModManager(wx.Frame):
         leftPanel = wx.Panel(panel)
         rightPanel = wx.Panel(panel)
 
-        self.mod_selector = CheckListCtrl(rightPanel)
-        self.mod_selector.InsertColumn(0, 'Mod', width=140)
+        self.mod_selector = wxu.UltimateListCtrl(rightPanel, agwStyle = wx.LC_REPORT | wxu.ULC_NO_HEADER | wxu.ULC_NO_HIGHLIGHT | wxu.ULC_SINGLE_SEL)
+
+        self.mod_selector.SetForegroundColour("#FFF")
+        self.mod_selector.SetBackgroundColour("#333")
+        self.mod_selector.SetTextColour("#FFF")
+
+        self.mod_selector.InsertColumn(0, 'Mod', width=200)
         self.mod_selector.InsertColumn(1, 'Size')
-        self.mod_selector.InsertColumn(2, 'Full Name')
+        self.mod_selector.InsertColumn(2, 'Full Name', width=240)
 
         self.mod_selector.SetDropTarget(ModFileDrop(rightPanel, self))
 
 
-        self.profile_selector = NoCheckListCtrl(rightPanel)
+        self.profile_selector = wxu.UltimateListCtrl(rightPanel, agwStyle = wx.LC_REPORT | wxu.ULC_NO_HEADER | wxu.ULC_SINGLE_SEL)
+
+        self.profile_selector.SetForegroundColour("#FFF")
+        self.profile_selector.SetBackgroundColour("#333")
+        self.profile_selector.SetTextColour("#FFF")
+
         self.profile_selector.InsertColumn(0, 'Profile')
-        self.profile_selector.Bind(wx.EVT_LIST_ITEM_SELECTED, self.ProfileClick)
+        self.profile_selector.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnProfileClick)
 
         #
         # Left Panel
@@ -127,18 +124,35 @@ class ModManager(wx.Frame):
         mod_settings_sizer = wx.BoxSizer(wx.VERTICAL)
 
         select_all_mod = wx.Button(leftPanel, label='Select All')
+        select_all_mod.SetBackgroundColour("#333")
+        select_all_mod.SetForegroundColour("#FFF")
+
         deselect_all_mod = wx.Button(leftPanel, label='Deselect All')
+        deselect_all_mod.SetBackgroundColour("#333")
+        deselect_all_mod.SetForegroundColour("#FFF")
+
         refresh_mod = wx.Button(leftPanel, label='Refresh')
+        refresh_mod.SetBackgroundColour("#333")
+        refresh_mod.SetForegroundColour("#FFF")
+
         apply_mod = wx.Button(leftPanel, label='Apply Changes')
+        apply_mod.SetBackgroundColour("#333")
+        apply_mod.SetForegroundColour("#FFF")
+
         game_path_button = wx.Button(leftPanel, label='Change Game Path')
+        game_path_button.SetBackgroundColour("#333")
+        game_path_button.SetForegroundColour("#FFF")
+
         run_ready_or_not = wx.Button(leftPanel, label='Run Ready or Not')
+        run_ready_or_not.SetBackgroundColour("#333")
+        run_ready_or_not.SetForegroundColour("#FFF")
 
         select_all_mod.Bind(wx.EVT_BUTTON, self.OnSelectAll)
         deselect_all_mod.Bind(wx.EVT_BUTTON, self.OnDeselectAll)
         refresh_mod.Bind(wx.EVT_BUTTON, self.OnRefresh)
         apply_mod.Bind(wx.EVT_BUTTON, self.OnApply)
-        game_path_button.Bind(wx.EVT_BUTTON, self.ChangeGamePath)
-        run_ready_or_not.Bind(wx.EVT_BUTTON, self.RunReadyOrNot)
+        game_path_button.Bind(wx.EVT_BUTTON, self.OnChangeGamePath)
+        run_ready_or_not.Bind(wx.EVT_BUTTON, self.OnRunReadyOrNot)
 
 
         mod_settings_sizer.Add(select_all_mod, flag=wx.ALIGN_CENTER)
@@ -152,33 +166,7 @@ class ModManager(wx.Frame):
         mod_settings_sizer.Add(run_ready_or_not, flag=wx.ALIGN_CENTER)
 
 
-        #
-        # Profile Settings
-        #
-        panel_settings_sizer = wx.BoxSizer(wx.VERTICAL)
-
-        # select_all_mod = wx.Button(leftPanel, label='Select All')
-        # deselect_all_mod = wx.Button(leftPanel, label='Deselect All')
-        # refresh_mod = wx.Button(leftPanel, label='Refresh')
-        # apply_mod = wx.Button(leftPanel, label='Apply Changes')
-        # game_path_button = wx.Button(leftPanel, label='Change Game Path')
-        #
-        # select_all_mod.Bind(wx.EVT_BUTTON, self.OnSelectAll)
-        # deselect_all_mod.Bind(wx.EVT_BUTTON, self.OnDeselectAll)
-        # refresh_mod.Bind(wx.EVT_BUTTON, self.OnRefresh)
-        # apply_mod.Bind(wx.EVT_BUTTON, self.OnApply)
-        # game_path_button.Bind(wx.EVT_BUTTON, self.ChangeGamePath)
-        #
-        #
-        # panel_settings_sizer.Add(select_all_mod, flag=wx.ALIGN_CENTER)
-        # panel_settings_sizer.Add(deselect_all_mod, flag=wx.ALIGN_CENTER)
-        # panel_settings_sizer.Add(refresh_mod, flag=wx.ALIGN_CENTER)
-        # panel_settings_sizer.Add(game_path_button, flag=wx.ALIGN_CENTER)
-        # panel_settings_sizer.Add(apply_mod, flag=wx.ALIGN_CENTER)
-
-
         left_panel_sizer.Add(mod_settings_sizer, proportion=1)
-        left_panel_sizer.Add(panel_settings_sizer, proportion=1)
 
         leftPanel.SetSizer(left_panel_sizer)
 
@@ -188,7 +176,9 @@ class ModManager(wx.Frame):
         vbox.Add(self.mod_selector, 4, wx.EXPAND | wx.TOP, 3)
         vbox.Add((-1, 10))
 
-        vbox.Add(wx.StaticText(rightPanel, label="Profiles"))
+        self.profiles_text = wx.StaticText(rightPanel, label="Profiles")
+        self.profiles_text.SetForegroundColour("#FFF")
+        vbox.Add(self.profiles_text)
         vbox.Add(self.profile_selector, 4, wx.EXPAND | wx.BOTTOM, 3)
 
         #
@@ -196,12 +186,24 @@ class ModManager(wx.Frame):
         #
         profile_options = wx.BoxSizer(wx.HORIZONTAL)
         self.load_profile = wx.Button(rightPanel, label="Load Profile")
+        self.load_profile.SetBackgroundColour("#333")
+        self.load_profile.SetForegroundColour("#FFF")
+
         self.save_profile = wx.Button(rightPanel, label="Save Profile")
+        self.save_profile.SetBackgroundColour("#333")
+        self.save_profile.SetForegroundColour("#FFF")
+
         self.delete_profile = wx.Button(rightPanel, label="Delete Profile")
+        self.delete_profile.SetBackgroundColour("#333")
+        self.delete_profile.SetForegroundColour("#FFF")
+
         self.profile_textctrl = wx.TextCtrl(rightPanel)
-        self.load_profile.Bind(wx.EVT_BUTTON, self.LoadProfile)
-        self.save_profile.Bind(wx.EVT_BUTTON, self.SaveProfile)
-        self.delete_profile.Bind(wx.EVT_BUTTON, self.DeleteProfile)
+        self.profile_textctrl.SetForegroundColour("#FFF")
+        self.profile_textctrl.SetBackgroundColour("#333")
+
+        self.load_profile.Bind(wx.EVT_BUTTON, self.OnLoadProfile)
+        self.save_profile.Bind(wx.EVT_BUTTON, self.OnSaveProfile)
+        self.delete_profile.Bind(wx.EVT_BUTTON, self.OnDeleteProfile)
 
         profile_options.Add(self.load_profile)
         profile_options.Add(self.save_profile)
@@ -225,9 +227,13 @@ class ModManager(wx.Frame):
             if version > self.current_version:
                 self.newest_version = version
                 self.warning_message = wx.StaticText(rightPanel, label = "Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.exe")
-                self.warning_button = wx.Button(rightPanel, label="Download")
+                self.warning_message.SetForegroundColour("#FFF")
 
-                self.warning_button.Bind(wx.EVT_BUTTON, self.OpenWebPage)
+                self.warning_button = wx.Button(rightPanel, label="Download")
+                self.warning_button.SetForegroundColour("#FFF")
+                self.warning_button.SetBackgroundColour("#333")
+
+                self.warning_button.Bind(wx.EVT_BUTTON, self.OnDownloadLatest)
 
                 warning_pane.Add(self.warning_message, flag=wx.TOP, border=7)
                 warning_pane.Add(self.warning_button, flag=wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.TOP, border=5)
@@ -253,7 +259,7 @@ class ModManager(wx.Frame):
             possible_path = helper_functions.get_steam_dir()
 
             if possible_path is None:
-                self.ChangeGamePath(None)
+                self.OnChangeGamePath(None)
             else:
                 self.main.game_directory = possible_path
                 json_data = {}
@@ -268,6 +274,9 @@ class ModManager(wx.Frame):
         self.refresh_profiles()
 
 
+    #
+    # Refresh Mods List
+    #
     def refresh_mods(self):
         mods_list = []
 
@@ -275,30 +284,58 @@ class ModManager(wx.Frame):
         mods = helper_functions.get_mods(self.main);
 
         for mod in mods:
-            name = mod.split("\\")[-1].split("-", maxsplit=1)[1].split(".")[0].replace("_P", "").replace("Mods_", "").replace("_"," ").replace("-", " ")
+            name = mod.split("\\")[-1] # Get file name with extension.
+            name = name.split("-", maxsplit=1)[-1] # Get file name without pakchunk99
+            name = name.split(".")[0] # Remove extenstion
+            name = name.replace("_P", "") # Remove patch file modifier.
+            name = name.replace("Mods", "") # Remove mods.
+            name = name.replace("_", "") # Remove left over _'s
+            name = name.replace("-", "") # Remove left over -'s
+            name = name.replace(" ", "") # Prepare for camelcase regex.
+
+            # Regex to separate camelcase and re-add to string.
+            name_list = re.findall(r'[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))', name)
+            final_name = ""
+            for item in name_list:
+                final_name += item + " "
+            final_name.strip(" ")
+
+            # Remove .old extension.
             path = mod.replace(".old", "")
-            mods_list.append((name, str(round(os.path.getsize(mod) / 1000000, 2)) + " MB", path.split("\\")[-1]))
+            mods_list.append((final_name, str(round(os.path.getsize(mod) / 1000000, 2)) + " MB", path.split("\\")[-1]))
 
         self.mod_selector.DeleteAllItems()
 
         idx = 0
         for i in mods_list:
-
-            index = self.mod_selector.InsertItem(idx, i[0])
-            self.mod_selector.SetItem(index, 1, str(i[1]))
-            self.mod_selector.SetItem(index, 2, str(i[2]))
+            # Create new item row with a selection box
+            index = self.mod_selector.InsertStringItem(idx, str(i[0]), it_kind=1)
+            self.mod_selector.SetStringItem(index, 1, str(i[1]))
+            self.mod_selector.SetStringItem(index, 2, str(i[2]))
 
             # If the file is enabled.
             if helper_functions.is_file_enabled(i[2], self.main):
-                self.mod_selector.CheckItem(index)
+                item = self.mod_selector.GetItem(index, 0)
+                item.SetBackgroundColour(wx.Colour("#333"))
+                item.SetTextColour(wx.Colour("#FFF"))
+                item.Check(True)
+                self.mod_selector.SetItem(item)
             idx += 1
 
+
+    #
+    # Refresh profile list.
+    #
     def refresh_profiles(self):
         self.profile_selector.DeleteAllItems()
         idx = 0
         for i in helper_functions.get_profiles():
-            index = self.profile_selector.InsertItem(idx, i)
+            index = self.profile_selector.InsertStringItem(idx, i)
             idx += 1
+
+
+    def run_downloaded_version(self):
+        subprocess.run([f"QuantumModManager v{self.newest_version}.exe", f"{sys.argv[0]}"])
 
 
     #
@@ -308,14 +345,18 @@ class ModManager(wx.Frame):
 
         num = self.mod_selector.GetItemCount()
         for i in range(num):
-            self.mod_selector.CheckItem(i)
+            item = self.mod_selector.GetItem(i, 0)
+            item.Check(True)
+            self.mod_selector.SetItem(item)
 
 
     def OnDeselectAll(self, event):
 
         num = self.mod_selector.GetItemCount()
         for i in range(num):
-            self.mod_selector.CheckItem(i, False)
+            item = self.mod_selector.GetItem(i, 0)
+            item.Check(False)
+            self.mod_selector.SetItem(item)
 
 
     def OnApply(self, event):
@@ -325,12 +366,12 @@ class ModManager(wx.Frame):
         for i in range(num):
 
             if self.mod_selector.IsItemChecked(i):
-                helper_functions.enable_mod(self.mod_selector.GetItemText(i, 2), self.main)
+                helper_functions.enable_mod(self.mod_selector.GetItem(i, col=2).GetText(), self.main)
             else:
-                helper_functions.disable_mod(self.mod_selector.GetItemText(i, 2), self.main)
+                helper_functions.disable_mod(self.mod_selector.GetItem(i, col=2).GetText(), self.main)
 
 
-    def LoadProfile(self, event):
+    def OnLoadProfile(self, event):
         profile_name = self.profile_textctrl.GetValue()
         if profile_name == "":
             return
@@ -341,17 +382,23 @@ class ModManager(wx.Frame):
         enabled_mods = json.load(file).keys()
 
         for i in range(self.mod_selector.GetItemCount()):
-            if self.mod_selector.GetItemText(i, 2) in enabled_mods:
-                self.mod_selector.CheckItem(i, True)
+            if self.mod_selector.GetItem(i, col=2).GetText() in enabled_mods:
+
+                item = self.mod_selector.GetItem(i, 0)
+                item.Check(True)
+                self.mod_selector.SetItem(item)
+
                 #enable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
             else:
-                self.mod_selector.CheckItem(i, False)
+                item = self.mod_selector.GetItem(i, 0)
+                item.Check(False)
+                self.mod_selector.SetItem(item)
                 #disable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
 
         file.close()
 
 
-    def SaveProfile(self, event):
+    def OnSaveProfile(self, event):
         profile_name = self.profile_textctrl.GetValue()
         if profile_name == "":
             return
@@ -360,14 +407,14 @@ class ModManager(wx.Frame):
         mods_dict = {}
         for i in range(self.mod_selector.GetItemCount()):
             if self.mod_selector.IsItemChecked(i):
-                mods_dict[self.mod_selector.GetItemText(i, 2)] = True
+                mods_dict[self.mod_selector.GetItem(i, col=2).GetText()] = True
         json.dump(mods_dict, file)
         file.close()
 
         self.refresh_profiles()
 
 
-    def DeleteProfile(self, event):
+    def OnDeleteProfile(self, event):
         profile_name = self.profile_textctrl.GetValue()
         if profile_name == "":
             return
@@ -375,11 +422,11 @@ class ModManager(wx.Frame):
         self.refresh_profiles()
 
 
-    def ProfileClick(self, event):
+    def OnProfileClick(self, event):
         self.profile_textctrl.SetValue(event.GetText())
 
 
-    def ChangeGamePath(self, event):
+    def OnChangeGamePath(self, event):
         dialog = wx.DirDialog(None, "Select Paks Folder",
                               style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
         if dialog.ShowModal() == wx.ID_OK:
@@ -397,7 +444,7 @@ class ModManager(wx.Frame):
         self.refresh_mods()
 
 
-    def RunReadyOrNot(self, event):
+    def OnRunReadyOrNot(self, event):
         ron_path_split = self.main.game_directory.split("\\")
         print(ron_path_split)
         ron_path = ""
@@ -409,7 +456,8 @@ class ModManager(wx.Frame):
         print(ron_path)
         os.startfile(ron_path)
 
-    def OpenWebPage(self, event):
+
+    def OnDownloadLatest(self, event):
         #webbrowser.open('http://unofficial-modding-guide.com/downloads/QuantumModManager.exe')
 
         # Download file.
@@ -421,9 +469,6 @@ class ModManager(wx.Frame):
                     exe.write(chunk)
 
         sys.exit()
-
-    def RunDownloadedVersion(self):
-        subprocess.run([f"QuantumModManager v{self.newest_version}.exe", f"{argv[0]}"])
 
 
 

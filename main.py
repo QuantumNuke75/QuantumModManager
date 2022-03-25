@@ -19,6 +19,7 @@ class Main:
 
         self.main_frame = ModManager(self, None)
         self.main_frame.Show()
+        main_app.SetTopWindow(self.main_frame)
 
         main_app.MainLoop()
 
