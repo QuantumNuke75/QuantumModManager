@@ -1,5 +1,10 @@
-import json, os, wx, requests, webbrowser
+import json, os, wx, requests, sys
+
 import wx.grid
+from py7zr import unpack_7zarchive
+import shutil
+from sys import argv
+import subprocess
 
 import helper_functions
 
@@ -26,30 +31,31 @@ class ModFileDrop(wx.FileDropTarget):
     def OnDropFiles(self, x, y, filenames):
 
         for filename in filenames:
-            # # If the file is a compressed file, extract all the .paks and add them to the Pak directory.
-            # if filename.endswith(".zip") or filename.endswith(".7z") or filename.endswith(".rar"):
-            #
-            #     # Make temp folder.
-            #     if not os.path.isdir("temp"):
-            #         os.mkdir("temp")
-            #     patoolib.extract_archive(filename, outdir="temp")
-            #
-            #     # Get all files in folders and subfolders.
-            #     file_list = list()
-            #     for (dir, dir_names, file_names) in os.walk("temp"):
-            #         file_list += [os.path.join(dir, file) for file in file_names]
-            #
-            #     # For each file, if it's a .pak file, move it the Paks folder.
-            #     for file in file_list:
-            #         if file.endswith(".pak"):
-            #             if os.path.isfile(self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1]):
-            #                 os.remove(self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1])
-            #             os.rename(file, self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1])
-            #
-            #     # Delete everything in temp folder.
-            #     for file in os.scandir("temp"):
-            #         os.remove(file)
-            #
+            # If the file is a compressed file, extract all the .paks and add them to the Pak directory.
+            if filename.endswith(".zip") or filename.endswith(".7z") or filename.endswith(".rar"):
+
+                # Make temp folder.
+                if not os.path.isdir("temp"):
+                    os.mkdir("temp")
+
+                shutil.unpack_archive(filename, "temp")
+
+                # Get all files in folders and subfolders.
+                file_list = list()
+                for (dir, dir_names, file_names) in os.walk("temp"):
+                    file_list += [os.path.join(dir, file) for file in file_names]
+
+                # For each file, if it's a .pak file, move it the Paks folder.
+                for file in file_list:
+                    if file.endswith(".pak"):
+                        if os.path.isfile(self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1]):
+                            os.remove(self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1])
+                        os.rename(file, self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1])
+
+                # Delete everything in temp folder.
+                for file in os.scandir("temp"):
+                    os.remove(file)
+
 
             # If the file is a .pak file, add it to the Pak directory.
             if filename.endswith(".pak"):
@@ -57,8 +63,21 @@ class ModFileDrop(wx.FileDropTarget):
                     os.remove(self.mod_manager.main.game_directory + "\\" + filename.split("\\")[-1])
                 os.rename(filename, self.mod_manager.main.game_directory + "\\" + filename.split("\\")[-1])
 
-        self.mod_manager.refresh_mods()
+            # If we are a folder get all .pak files in directories and subdirectories and then addd them to the Paks directory.
+            if "." not in filename:
+                file_list = list()
+                for (dir, dir_names, file_names) in os.walk("filename"):
+                    file_list += [os.path.join(dir, file) for file in file_names]
 
+                # For each file, if it's a .pak file, move it the Paks folder.
+                for file in file_list:
+                    if file.endswith(".pak"):
+                        if os.path.isfile(self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1]):
+                            os.remove(self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1])
+                        os.rename(file, self.mod_manager.main.game_directory + "\\" + file.split("\\")[-1])
+
+        self.mod_manager.refresh_mods()
+        self.mod_manager.refresh_mods()
         return True
 
 
@@ -67,8 +86,10 @@ class ModManager(wx.Frame):
     def __init__(self, main, *args, **kw):
         super(ModManager, self).__init__(size=(740, 500),*args, **kw)
 
+        shutil.register_unpack_format('7zip', ['.7z'], unpack_7zarchive)
+
         self.main = main
-        self.current_version = 1.5
+        self.current_version = 1.8
 
         panel = wx.Panel(self)
 
@@ -82,7 +103,6 @@ class ModManager(wx.Frame):
         leftPanel = wx.Panel(panel)
         rightPanel = wx.Panel(panel)
 
-        #self.log = wx.TextCtrl(rightPanel, style=wx.TE_MULTILINE|wx.TE_READONLY)
         self.mod_selector = CheckListCtrl(rightPanel)
         self.mod_selector.InsertColumn(0, 'Mod', width=140)
         self.mod_selector.InsertColumn(1, 'Size')
@@ -203,6 +223,7 @@ class ModManager(wx.Frame):
         if response is not None and str(response.reason) == "OK":
             version = float(str(response.content).split("Quantum Mod Manager")[1][2:5])
             if version > self.current_version:
+                self.newest_version = version
                 self.warning_message = wx.StaticText(rightPanel, label = "Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.exe")
                 self.warning_button = wx.Button(rightPanel, label="Download")
 
@@ -224,7 +245,7 @@ class ModManager(wx.Frame):
         panel.SetSizer(outer_horz)
 
         # Final window changes
-        self.SetTitle('Quantum Mod Manager')
+        self.SetTitle('Quantum Mod Manager v' + str(self.current_version))
         self.Centre()
 
         # If the game directory is not set.
@@ -254,8 +275,7 @@ class ModManager(wx.Frame):
         mods = helper_functions.get_mods(self.main);
 
         for mod in mods:
-            name = mod.split("\\")[-1].split("-")[1].split(".")[0].replace("_P", "").replace("Mods_", "").replace("_",
-                                                                                                                  " ")
+            name = mod.split("\\")[-1].split("-", maxsplit=1)[1].split(".")[0].replace("_P", "").replace("Mods_", "").replace("_"," ").replace("-", " ")
             path = mod.replace(".old", "")
             mods_list.append((name, str(round(os.path.getsize(mod) / 1000000, 2)) + " MB", path.split("\\")[-1]))
 
@@ -346,12 +366,14 @@ class ModManager(wx.Frame):
 
         self.refresh_profiles()
 
+
     def DeleteProfile(self, event):
         profile_name = self.profile_textctrl.GetValue()
         if profile_name == "":
             return
         os.remove("Profiles\\" + profile_name + ".json")
         self.refresh_profiles()
+
 
     def ProfileClick(self, event):
         self.profile_textctrl.SetValue(event.GetText())
@@ -388,5 +410,22 @@ class ModManager(wx.Frame):
         os.startfile(ron_path)
 
     def OpenWebPage(self, event):
-        webbrowser.open('http://unofficial-modding-guide.com/downloads/QuantumModManager.exe')
+        #webbrowser.open('http://unofficial-modding-guide.com/downloads/QuantumModManager.exe')
+
+        # Download file.
+        url = 'http://unofficial-modding-guide.com/downloads/QuantumModManager.exe'
+        r = requests.get(url, stream=True)
+        with open(f"QuantumModManager v{self.newest_version}.exe", "wb") as exe:
+            for chunk in r.iter_content(chunk_size=1024):
+                if chunk:
+                    exe.write(chunk)
+
+        sys.exit()
+
+    def RunDownloadedVersion(self):
+        subprocess.run([f"QuantumModManager v{self.newest_version}.exe", f"{argv[0]}"])
+
+
+
+
 
