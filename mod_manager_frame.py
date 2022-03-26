@@ -74,7 +74,7 @@ class ModManager(wx.Frame):
         shutil.register_unpack_format('7zip', ['.7z'], unpack_7zarchive)
 
         self.main = main
-        self.current_version = 2.0
+        self.current_version = 2.1
 
         # Panel
         panel = wx.Panel(self)
