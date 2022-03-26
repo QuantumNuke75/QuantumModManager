@@ -74,7 +74,7 @@ class ModManager(wx.Frame):
         shutil.register_unpack_format('7zip', ['.7z'], unpack_7zarchive)
 
         self.main = main
-        self.current_version = 2.1
+        self.current_version = 2.2
 
         # Panel
         panel = wx.Panel(self)
@@ -87,10 +87,10 @@ class ModManager(wx.Frame):
         right_panel_vert_sizer = wx.BoxSizer(wx.VERTICAL)
         outer_horz = wx.BoxSizer(wx.HORIZONTAL)
 
-        leftPanel = wx.Panel(panel)
-        rightPanel = wx.Panel(panel)
+        left_panel = wx.Panel(panel)
+        right_panel = wx.Panel(panel)
 
-        self.mod_selector = wxu.UltimateListCtrl(rightPanel, agwStyle = wx.LC_REPORT | wxu.ULC_NO_HEADER | wxu.ULC_NO_HIGHLIGHT | wxu.ULC_SINGLE_SEL)
+        self.mod_selector = wxu.UltimateListCtrl(right_panel, agwStyle = wx.LC_REPORT | wxu.ULC_NO_HEADER | wxu.ULC_NO_HIGHLIGHT | wxu.ULC_SINGLE_SEL)
 
         self.mod_selector.SetForegroundColour("#FFF")
         self.mod_selector.SetBackgroundColour("#333")
@@ -100,10 +100,10 @@ class ModManager(wx.Frame):
         self.mod_selector.InsertColumn(1, 'Size')
         self.mod_selector.InsertColumn(2, 'Full Name', width=240)
 
-        self.mod_selector.SetDropTarget(ModFileDrop(rightPanel, self))
+        self.mod_selector.SetDropTarget(ModFileDrop(right_panel, self))
 
 
-        self.profile_selector = wxu.UltimateListCtrl(rightPanel, agwStyle = wx.LC_REPORT | wxu.ULC_NO_HEADER | wxu.ULC_SINGLE_SEL)
+        self.profile_selector = wxu.UltimateListCtrl(right_panel, agwStyle = wx.LC_REPORT | wxu.ULC_NO_HEADER | wxu.ULC_SINGLE_SEL)
 
         self.profile_selector.SetForegroundColour("#FFF")
         self.profile_selector.SetBackgroundColour("#333")
@@ -124,32 +124,32 @@ class ModManager(wx.Frame):
         mod_settings_sizer = wx.BoxSizer(wx.VERTICAL)
 
         # Select All Mods Button
-        select_all_mod = wx.Button(leftPanel, label='Select All')
+        select_all_mod = wx.Button(left_panel, label='Select All')
         select_all_mod.SetBackgroundColour("#333")
         select_all_mod.SetForegroundColour("#FFF")
 
         # Deselect All Mods Button
-        deselect_all_mod = wx.Button(leftPanel, label='Deselect All')
+        deselect_all_mod = wx.Button(left_panel, label='Deselect All')
         deselect_all_mod.SetBackgroundColour("#333")
         deselect_all_mod.SetForegroundColour("#FFF")
 
         # Refresh Mods Button
-        refresh_mod = wx.Button(leftPanel, label='Refresh')
+        refresh_mod = wx.Button(left_panel, label='Refresh')
         refresh_mod.SetBackgroundColour("#333")
         refresh_mod.SetForegroundColour("#FFF")
 
         # Apply Mod Changes Button
-        apply_mod = wx.Button(leftPanel, label='Apply Changes')
+        apply_mod = wx.Button(left_panel, label='Apply Changes')
         apply_mod.SetBackgroundColour("#333")
         apply_mod.SetForegroundColour("#FFF")
 
         # Change Game Path button.
-        game_path_button = wx.Button(leftPanel, label='Change Game Path')
+        game_path_button = wx.Button(left_panel, label='Change Game Path')
         game_path_button.SetBackgroundColour("#333")
         game_path_button.SetForegroundColour("#FFF")
 
         # Run Ready or Not Button
-        run_ready_or_not = wx.Button(leftPanel, label='Run Ready or Not')
+        run_ready_or_not = wx.Button(left_panel, label='Run Ready or Not')
         run_ready_or_not.SetBackgroundColour("#333")
         run_ready_or_not.SetForegroundColour("#FFF")
 
@@ -172,7 +172,7 @@ class ModManager(wx.Frame):
 
         left_panel_sizer.Add(mod_settings_sizer, proportion=1)
 
-        leftPanel.SetSizer(left_panel_sizer)
+        left_panel.SetSizer(left_panel_sizer)
 
         #
         # Right Panel
@@ -180,7 +180,7 @@ class ModManager(wx.Frame):
         right_panel_vert_sizer.Add(self.mod_selector, 4, wx.EXPAND | wx.TOP, 3)
         right_panel_vert_sizer.Add((-1, 10))
 
-        self.profiles_text = wx.StaticText(rightPanel, label="Profiles")
+        self.profiles_text = wx.StaticText(right_panel, label="Profiles")
         self.profiles_text.SetForegroundColour("#FFF")
         right_panel_vert_sizer.Add(self.profiles_text)
         right_panel_vert_sizer.Add(self.profile_selector, 4, wx.EXPAND | wx.BOTTOM, 3)
@@ -191,22 +191,22 @@ class ModManager(wx.Frame):
         profile_options = wx.BoxSizer(wx.HORIZONTAL)
 
         # Load Profile Button
-        self.load_profile = wx.Button(rightPanel, label="Load Profile")
+        self.load_profile = wx.Button(right_panel, label="Load Profile")
         self.load_profile.SetBackgroundColour("#333")
         self.load_profile.SetForegroundColour("#FFF")
 
         # Save Profile Button
-        self.save_profile = wx.Button(rightPanel, label="Save Profile")
+        self.save_profile = wx.Button(right_panel, label="Save Profile")
         self.save_profile.SetBackgroundColour("#333")
         self.save_profile.SetForegroundColour("#FFF")
 
         # Delete Profile Button
-        self.delete_profile = wx.Button(rightPanel, label="Delete Profile")
+        self.delete_profile = wx.Button(right_panel, label="Delete Profile")
         self.delete_profile.SetBackgroundColour("#333")
         self.delete_profile.SetForegroundColour("#FFF")
 
         # Profile Name Input
-        self.profile_textctrl = wx.TextCtrl(rightPanel)
+        self.profile_textctrl = wx.TextCtrl(right_panel)
         self.profile_textctrl.SetForegroundColour("#FFF")
         self.profile_textctrl.SetBackgroundColour("#333")
 
@@ -242,10 +242,10 @@ class ModManager(wx.Frame):
             # If out version is lower, show update button.
             if version > self.current_version:
                 self.newest_version = version
-                self.warning_message = wx.StaticText(rightPanel, label = "Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.exe")
+                self.warning_message = wx.StaticText(right_panel, label = "Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.exe")
                 self.warning_message.SetForegroundColour("#FFF")
 
-                self.warning_button = wx.Button(rightPanel, label="Download")
+                self.warning_button = wx.Button(right_panel, label="Download")
                 self.warning_button.SetForegroundColour("#FFF")
                 self.warning_button.SetBackgroundColour("#333")
 
@@ -256,11 +256,11 @@ class ModManager(wx.Frame):
 
         right_panel_vert_sizer.Add(warning_pane, flag=wx.EXPAND)
 
-        rightPanel.SetSizer(right_panel_vert_sizer)
+        right_panel.SetSizer(right_panel_vert_sizer)
 
         # Add left and right panels to main sizer
-        outer_horz.Add(leftPanel, 0, wx.EXPAND | wx.RIGHT | wx.LEFT, 5)
-        outer_horz.Add(rightPanel, 1, wx.EXPAND)
+        outer_horz.Add(left_panel, 0, wx.EXPAND | wx.RIGHT | wx.LEFT, 5)
+        outer_horz.Add(right_panel, 1, wx.EXPAND)
         outer_horz.Add((3, -1))
 
         # Add main sizer to main panel
@@ -284,7 +284,7 @@ class ModManager(wx.Frame):
                 json_data["game_directory"] = self.main.game_directory
                 json.dump(json_data, open("Settings.ini", "w"))
 
-        if self.main.game_directory == None:
+        if self.main.game_directory is None:
             quit()
 
         # Refresh all mods and profiles.
@@ -298,7 +298,7 @@ class ModManager(wx.Frame):
     def refresh_mods(self):
         mods_list = []
 
-        mods = helper_functions.get_mods(self.main);
+        mods = helper_functions.get_mods(self.main)
 
         for mod in mods:
 
