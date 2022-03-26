@@ -70,9 +70,12 @@ def get_steam_dir():
         drives = win32api.GetLogicalDriveStrings()
         drives = drives.split('\000')[:-1]
         for drive in drives:
-            for file in os.scandir(drive):
-                if os.path.isdir(file.path) and "$" not in file.path:
-                    find_folder(file.path,possible_game_path)
+            try:
+                for file in os.scandir(drive):
+                    if os.path.isdir(file.path) and "$" not in file.path:
+                        find_folder(file.path,possible_game_path)
+            except:
+                continue
         return possible_game_path[0]
 
 
