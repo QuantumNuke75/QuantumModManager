@@ -84,7 +84,7 @@ class ModManager(wx.Frame):
         font = wx.SystemSettings.GetFont(wx.SYS_SYSTEM_FONT)
         font.SetPointSize(9)
 
-        vbox = wx.BoxSizer(wx.VERTICAL)
+        right_panel_vert_sizer = wx.BoxSizer(wx.VERTICAL)
         outer_horz = wx.BoxSizer(wx.HORIZONTAL)
 
         leftPanel = wx.Panel(panel)
@@ -173,13 +173,13 @@ class ModManager(wx.Frame):
         #
         # Right Panel
         #
-        vbox.Add(self.mod_selector, 4, wx.EXPAND | wx.TOP, 3)
-        vbox.Add((-1, 10))
+        right_panel_vert_sizer.Add(self.mod_selector, 4, wx.EXPAND | wx.TOP, 3)
+        right_panel_vert_sizer.Add((-1, 10))
 
         self.profiles_text = wx.StaticText(rightPanel, label="Profiles")
         self.profiles_text.SetForegroundColour("#FFF")
-        vbox.Add(self.profiles_text)
-        vbox.Add(self.profile_selector, 4, wx.EXPAND | wx.BOTTOM, 3)
+        right_panel_vert_sizer.Add(self.profiles_text)
+        right_panel_vert_sizer.Add(self.profile_selector, 4, wx.EXPAND | wx.BOTTOM, 3)
 
         #
         # Profile Buttons
@@ -211,19 +211,25 @@ class ModManager(wx.Frame):
         profile_options.Add(self.profile_textctrl, proportion=1)
 
 
-        vbox.Add(profile_options, flag = wx.EXPAND | wx.TOP | wx.BOTTOM, border = 5)
+        right_panel_vert_sizer.Add(profile_options, flag = wx.EXPAND | wx.TOP | wx.BOTTOM, border = 5)
 
         #
         # Version Warning
         #
         warning_pane = wx.BoxSizer(wx.HORIZONTAL)
+
         response = None
         try:
+            # Send a response to the page with the version number.
             response = requests.get('https://unofficial-modding-guide.com/tools.html')
         except:
             ...
+
+        # If we got a reponse back.
         if response is not None and str(response.reason) == "OK":
+            # Get the version from the striped HTML.
             version = float(str(response.content).split("Quantum Mod Manager")[1][2:5])
+            # If out version is lower, show update button.
             if version > self.current_version:
                 self.newest_version = version
                 self.warning_message = wx.StaticText(rightPanel, label = "Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.exe")
@@ -238,9 +244,9 @@ class ModManager(wx.Frame):
                 warning_pane.Add(self.warning_message, flag=wx.TOP, border=7)
                 warning_pane.Add(self.warning_button, flag=wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.TOP, border=5)
 
-        vbox.Add(warning_pane, flag=wx.EXPAND)
+        right_panel_vert_sizer.Add(warning_pane, flag=wx.EXPAND)
 
-        rightPanel.SetSizer(vbox)
+        rightPanel.SetSizer(right_panel_vert_sizer)
 
         # Add left and right panels to main sizer
         outer_horz.Add(leftPanel, 0, wx.EXPAND | wx.RIGHT | wx.LEFT, 5)
@@ -258,8 +264,10 @@ class ModManager(wx.Frame):
         if self.main.game_directory is None or self.main.game_directory == "":
             possible_path = helper_functions.get_steam_dir()
 
+            # If we couldn't auto find the steam directory, open up a prompt to search for it.
             if possible_path is None:
                 self.OnChangeGamePath(None)
+            # If we did a find a directory, apply and save changes.
             else:
                 self.main.game_directory = possible_path
                 json_data = {}
@@ -280,10 +288,21 @@ class ModManager(wx.Frame):
     def refresh_mods(self):
         mods_list = []
 
-        mods_list.clear()
         mods = helper_functions.get_mods(self.main);
 
         for mod in mods:
+
+            # Check for duplicates.
+            if os.path.isdir(mod.replace(".old", "")) and os.path.isdir(mod.replace(".old", "") + ".old"):
+                # Remove likely older version.
+                os.remove(mod.replace(".old", "") + ".old")
+
+                # Check if we are on the older version, if so, skip. Eventually, we should read metadata to ensure which
+                # file is older / younger.
+                if mod == mod.replace(".old", "") + ".old":
+                    continue
+
+
             name = mod.split("\\")[-1] # Get file name with extension.
             name = name.split("-", maxsplit=1)[-1] # Get file name without pakchunk99
             name = name.split(".")[0] # Remove extenstion
@@ -304,6 +323,7 @@ class ModManager(wx.Frame):
             path = mod.replace(".old", "")
             mods_list.append((final_name, str(round(os.path.getsize(mod) / 1000000, 2)) + " MB", path.split("\\")[-1]))
 
+        # Remove all the items from the list so we can add them back.
         self.mod_selector.DeleteAllItems()
 
         idx = 0
@@ -316,8 +336,8 @@ class ModManager(wx.Frame):
             # If the file is enabled.
             if helper_functions.is_file_enabled(i[2], self.main):
                 item = self.mod_selector.GetItem(index, 0)
-                item.SetBackgroundColour(wx.Colour("#333"))
-                item.SetTextColour(wx.Colour("#FFF"))
+                #item.SetBackgroundColour(wx.Colour("#333"))
+                #item.SetTextColour(wx.Colour("#FFF"))
                 item.Check(True)
                 self.mod_selector.SetItem(item)
             idx += 1
