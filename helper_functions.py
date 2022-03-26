@@ -2,6 +2,9 @@ import os
 import win32api
 
 
+#
+# Checks whether a mod is enabled or disabled.
+#
 def is_file_enabled(path, main):
     if os.path.isfile(main.game_directory + "\\" +path):
         return True
@@ -11,16 +14,25 @@ def is_file_enabled(path, main):
         return False
 
 
+#
+# Enables a mod at a given path.
+#
 def enable_mod(path, main):
     if os.path.isfile(main.game_directory + "\\" + path + ".old"):
         os.rename(main.game_directory + "\\" + path + ".old", main.game_directory + "\\" + path)
 
 
+#
+# Disables a mod at a given path.
+#
 def disable_mod(path, main):
     if os.path.isfile(main.game_directory + "\\" + path):
         os.rename(main.game_directory + "\\" + path, main.game_directory + "\\" + path + ".old")
 
 
+#
+# Gets all the mods within the game directory.
+#
 def get_mods(main):
     temp = []
     with os.scandir(main.game_directory) as dirs:
@@ -31,6 +43,9 @@ def get_mods(main):
     return [x for x in temp if ".pak" in x]
 
 
+#
+# Gets all the profiles in the `Profiles` directory.
+#
 def get_profiles():
     path = r"Profiles"
     temp = []
@@ -45,6 +60,9 @@ def get_profiles():
     return temp
 
 
+#
+# Get the Pak directory of Ready or Not.
+#
 def get_steam_dir():
         # Python suuuuucks...
         possible_game_path = [None]
@@ -58,6 +76,9 @@ def get_steam_dir():
         return possible_game_path[0]
 
 
+#
+# Recursive function to find the Paks directory.
+#
 def find_folder(path, possible_game_path, depth=0):
         if possible_game_path[0] is not None:
             return

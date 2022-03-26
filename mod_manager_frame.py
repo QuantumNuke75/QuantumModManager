@@ -123,30 +123,37 @@ class ModManager(wx.Frame):
         #
         mod_settings_sizer = wx.BoxSizer(wx.VERTICAL)
 
+        # Select All Mods Button
         select_all_mod = wx.Button(leftPanel, label='Select All')
         select_all_mod.SetBackgroundColour("#333")
         select_all_mod.SetForegroundColour("#FFF")
 
+        # Deselect All Mods Button
         deselect_all_mod = wx.Button(leftPanel, label='Deselect All')
         deselect_all_mod.SetBackgroundColour("#333")
         deselect_all_mod.SetForegroundColour("#FFF")
 
+        # Refresh Mods Button
         refresh_mod = wx.Button(leftPanel, label='Refresh')
         refresh_mod.SetBackgroundColour("#333")
         refresh_mod.SetForegroundColour("#FFF")
 
+        # Apply Mod Changes Button
         apply_mod = wx.Button(leftPanel, label='Apply Changes')
         apply_mod.SetBackgroundColour("#333")
         apply_mod.SetForegroundColour("#FFF")
 
+        # Change Game Path button.
         game_path_button = wx.Button(leftPanel, label='Change Game Path')
         game_path_button.SetBackgroundColour("#333")
         game_path_button.SetForegroundColour("#FFF")
 
+        # Run Ready or Not Button
         run_ready_or_not = wx.Button(leftPanel, label='Run Ready or Not')
         run_ready_or_not.SetBackgroundColour("#333")
         run_ready_or_not.SetForegroundColour("#FFF")
 
+        # Bind all buttons to functions.
         select_all_mod.Bind(wx.EVT_BUTTON, self.OnSelectAll)
         deselect_all_mod.Bind(wx.EVT_BUTTON, self.OnDeselectAll)
         refresh_mod.Bind(wx.EVT_BUTTON, self.OnRefresh)
@@ -154,17 +161,14 @@ class ModManager(wx.Frame):
         game_path_button.Bind(wx.EVT_BUTTON, self.OnChangeGamePath)
         run_ready_or_not.Bind(wx.EVT_BUTTON, self.OnRunReadyOrNot)
 
-
+        # Add all buttons to sizer.
         mod_settings_sizer.Add(select_all_mod, flag=wx.ALIGN_CENTER)
         mod_settings_sizer.Add(deselect_all_mod, flag=wx.ALIGN_CENTER)
         mod_settings_sizer.Add(refresh_mod, flag=wx.ALIGN_CENTER)
         mod_settings_sizer.Add(apply_mod, flag=wx.ALIGN_CENTER)
-
         mod_settings_sizer.Add((-1, 25))
-
         mod_settings_sizer.Add(game_path_button, flag=wx.ALIGN_CENTER)
         mod_settings_sizer.Add(run_ready_or_not, flag=wx.ALIGN_CENTER)
-
 
         left_panel_sizer.Add(mod_settings_sizer, proportion=1)
 
@@ -185,31 +189,37 @@ class ModManager(wx.Frame):
         # Profile Buttons
         #
         profile_options = wx.BoxSizer(wx.HORIZONTAL)
+
+        # Load Profile Button
         self.load_profile = wx.Button(rightPanel, label="Load Profile")
         self.load_profile.SetBackgroundColour("#333")
         self.load_profile.SetForegroundColour("#FFF")
 
+        # Save Profile Button
         self.save_profile = wx.Button(rightPanel, label="Save Profile")
         self.save_profile.SetBackgroundColour("#333")
         self.save_profile.SetForegroundColour("#FFF")
 
+        # Delete Profile Button
         self.delete_profile = wx.Button(rightPanel, label="Delete Profile")
         self.delete_profile.SetBackgroundColour("#333")
         self.delete_profile.SetForegroundColour("#FFF")
 
+        # Profile Name Input
         self.profile_textctrl = wx.TextCtrl(rightPanel)
         self.profile_textctrl.SetForegroundColour("#FFF")
         self.profile_textctrl.SetBackgroundColour("#333")
 
+        # Bind buttons to functions.
         self.load_profile.Bind(wx.EVT_BUTTON, self.OnLoadProfile)
         self.save_profile.Bind(wx.EVT_BUTTON, self.OnSaveProfile)
         self.delete_profile.Bind(wx.EVT_BUTTON, self.OnDeleteProfile)
 
+        # Add all items to sizer.
         profile_options.Add(self.load_profile)
         profile_options.Add(self.save_profile)
         profile_options.Add(self.delete_profile)
         profile_options.Add(self.profile_textctrl, proportion=1)
-
 
         right_panel_vert_sizer.Add(profile_options, flag = wx.EXPAND | wx.TOP | wx.BOTTOM, border = 5)
 
@@ -313,7 +323,7 @@ class ModManager(wx.Frame):
             name = name.replace(" ", "") # Prepare for camelcase regex.
 
             # Regex to separate camelcase and re-add to string.
-            name_list = re.findall(r'[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))', name)
+            name_list = re.findall(r'[A-Z,0-9](?:[a-z]+|[A-Z,0-9]*(?=[A-Z,0-9]|$))', name)
             final_name = ""
             for item in name_list:
                 final_name += item + " "
@@ -452,6 +462,7 @@ class ModManager(wx.Frame):
             json.dump(json_data, open("Settings.ini", "w"))
 
         dialog.Destroy()
+        self.refresh_mods()
 
 
     def OnRefresh(self, event):
