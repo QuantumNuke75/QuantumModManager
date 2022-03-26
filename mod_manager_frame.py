@@ -1,4 +1,4 @@
-import json, os, wx, requests, sys, re, shutil,subprocess
+import json, os, wx, requests, sys, re, shutil, subprocess
 from py7zr import unpack_7zarchive
 import wx.lib.agw.ultimatelistctrl as wxu
 
@@ -384,7 +384,6 @@ class ModManager(wx.Frame):
         num = self.mod_selector.GetItemCount()
 
         for i in range(num):
-
             if self.mod_selector.IsItemChecked(i):
                 helper_functions.enable_mod(self.mod_selector.GetItem(i, col=2).GetText(), self.main)
             else:
@@ -407,13 +406,10 @@ class ModManager(wx.Frame):
                 item = self.mod_selector.GetItem(i, 0)
                 item.Check(True)
                 self.mod_selector.SetItem(item)
-
-                #enable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
             else:
                 item = self.mod_selector.GetItem(i, 0)
                 item.Check(False)
                 self.mod_selector.SetItem(item)
-                #disable_mod(GlobalVariables.mod_selector.GetItemText(i, 2))
 
         file.close()
 
@@ -447,10 +443,8 @@ class ModManager(wx.Frame):
 
 
     def OnChangeGamePath(self, event):
-        dialog = wx.DirDialog(None, "Select Paks Folder",
-                              style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
+        dialog = wx.DirDialog(None, "Select Paks Folder", style=wx.DD_DEFAULT_STYLE | wx.DD_NEW_DIR_BUTTON)
         if dialog.ShowModal() == wx.ID_OK:
-            print(type(dialog.GetPath()))
             self.main.game_directory = dialog.GetPath()
 
             json_data = {}
@@ -466,19 +460,16 @@ class ModManager(wx.Frame):
 
     def OnRunReadyOrNot(self, event):
         ron_path_split = self.main.game_directory.split("\\")
-        print(ron_path_split)
         ron_path = ""
         for item in ron_path_split:
             ron_path += item + "\\"
             if item == "ReadyOrNot":
                 break
         ron_path += "\\Binaries\\Win64\\ReadyOrNot-Win64-Shipping.exe"
-        print(ron_path)
         os.startfile(ron_path)
 
 
     def OnDownloadLatest(self, event):
-        #webbrowser.open('http://unofficial-modding-guide.com/downloads/QuantumModManager.exe')
 
         # Download file.
         url = 'http://unofficial-modding-guide.com/downloads/QuantumModManager.exe'
