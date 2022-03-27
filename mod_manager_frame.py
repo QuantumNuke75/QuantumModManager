@@ -5,6 +5,8 @@ import wx.lib.agw.ultimatelistctrl as wxu
 import helper_functions
 
 #-----------------------------------------------------------------------------------------------------------------------
+import information_frame
+
 
 class ModFileDrop(wx.FileDropTarget):
 
@@ -118,38 +120,81 @@ class ModManager(wx.Frame):
 
         left_panel_sizer = wx.BoxSizer(wx.VERTICAL)
 
+        # QMM Font
+        qmm_font = wx.SystemSettings.GetFont(wx.SYS_SYSTEM_FONT)
+        qmm_font.SetPointSize(20)
+
+        text = wx.StaticText(left_panel, label="Quantum Mod")
+        text.SetForegroundColour("#FFF")
+        text.SetFont(qmm_font)
+        left_panel_sizer.Add(text, flag=wx.CENTER)
+
+        text = wx.StaticText(left_panel, label="Manager")
+        text.SetForegroundColour("#FFF")
+        text.SetFont(qmm_font)
+        left_panel_sizer.Add(text, flag=wx.CENTER)
+
+        left_panel_sizer.Add((-1,25))
+
+        text = wx.StaticText(left_panel, label="If you encounter any issues please let me know at: QuantumNuke75#3593", style=wx.ALIGN_CENTER)
+        text.SetForegroundColour("#FFF")
+        text.Wrap(120)
+        left_panel_sizer.Add(text,0,wx.ALIGN_LEFT)
+
+        left_panel_sizer.Add((-1, 25))
+
+        # self.info_button = wx.Button(left_panel, label="Information")
+        # self.info_button.Bind(wx.EVT_BUTTON, self.OnInfo)
+        # self.info_button.SetForegroundColour("#FFF")
+        # self.info_button.SetBackgroundColour("#333")
+        #
+        # left_panel_sizer.Add(self.info_button, flag=wx.EXPAND)
+
+        left_panel.SetSizer(left_panel_sizer)
+
+
+        #
+        # Right Panel
+        #
+        self.mods_text = wx.StaticText(right_panel, label="Mods")
+        self.mods_text.SetForegroundColour("#FFF")
+        right_panel_vert_sizer.Add(self.mods_text)
+
+        # Add mod selector.
+        right_panel_vert_sizer.Add(self.mod_selector, 4, wx.EXPAND | wx.TOP, 3)
+
         #
         # Mod Settings
         #
-        mod_settings_sizer = wx.BoxSizer(wx.VERTICAL)
+        mod_settings_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         # Select All Mods Button
-        select_all_mod = wx.Button(left_panel, label='Select All')
+        select_all_mod = wx.Button(right_panel, label='Select All')
         select_all_mod.SetBackgroundColour("#333")
         select_all_mod.SetForegroundColour("#FFF")
 
         # Deselect All Mods Button
-        deselect_all_mod = wx.Button(left_panel, label='Deselect All')
+        deselect_all_mod = wx.Button(right_panel, label='Deselect All')
         deselect_all_mod.SetBackgroundColour("#333")
         deselect_all_mod.SetForegroundColour("#FFF")
 
         # Refresh Mods Button
-        refresh_mod = wx.Button(left_panel, label='Refresh')
+        refresh_mod = wx.Button(right_panel, label='Refresh')
         refresh_mod.SetBackgroundColour("#333")
         refresh_mod.SetForegroundColour("#FFF")
 
         # Apply Mod Changes Button
-        apply_mod = wx.Button(left_panel, label='Apply Changes')
+        apply_mod = wx.Button(right_panel, label='Apply Changes')
         apply_mod.SetBackgroundColour("#333")
         apply_mod.SetForegroundColour("#FFF")
 
         # Change Game Path button.
-        game_path_button = wx.Button(left_panel, label='Change Game Path')
+        game_path_button = wx.Button(right_panel, label='Change Game Path')
         game_path_button.SetBackgroundColour("#333")
         game_path_button.SetForegroundColour("#FFF")
 
         # Run Ready or Not Button
-        run_ready_or_not = wx.Button(left_panel, label='Run Ready or Not')
+        run_ready_or_not = wx.Button(right_panel, label='Run Ready or Not')
         run_ready_or_not.SetBackgroundColour("#333")
         run_ready_or_not.SetForegroundColour("#FFF")
 
@@ -164,20 +209,15 @@ class ModManager(wx.Frame):
         # Add all buttons to sizer.
         mod_settings_sizer.Add(select_all_mod, flag=wx.ALIGN_CENTER)
         mod_settings_sizer.Add(deselect_all_mod, flag=wx.ALIGN_CENTER)
+        mod_settings_sizer.Add((25, -1))
         mod_settings_sizer.Add(refresh_mod, flag=wx.ALIGN_CENTER)
         mod_settings_sizer.Add(apply_mod, flag=wx.ALIGN_CENTER)
-        mod_settings_sizer.Add((-1, 25))
+        mod_settings_sizer.Add((25, -1))
         mod_settings_sizer.Add(game_path_button, flag=wx.ALIGN_CENTER)
         mod_settings_sizer.Add(run_ready_or_not, flag=wx.ALIGN_CENTER)
 
-        left_panel_sizer.Add(mod_settings_sizer, proportion=1)
+        right_panel_vert_sizer.Add(mod_settings_sizer)
 
-        left_panel.SetSizer(left_panel_sizer)
-
-        #
-        # Right Panel
-        #
-        right_panel_vert_sizer.Add(self.mod_selector, 4, wx.EXPAND | wx.TOP, 3)
         right_panel_vert_sizer.Add((-1, 10))
 
         self.profiles_text = wx.StaticText(right_panel, label="Profiles")
@@ -371,6 +411,11 @@ class ModManager(wx.Frame):
     #
     # Interact Events
     #
+    def OnInfo(self, event):
+        info_frame = information_frame.Info(self)
+        info_frame.Show()
+
+
     def OnSelectAll(self, event):
 
         num = self.mod_selector.GetItemCount()
