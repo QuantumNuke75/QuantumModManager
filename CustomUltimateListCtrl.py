@@ -4380,7 +4380,6 @@ class UltimateListLineData(object):
                         dc.DrawRectangle(self._gi._rectHighlight)
 
         else:
-
             if borderOnly:
                 dc.SetBrush(wx.WHITE_BRUSH)
                 dc.SetPen(wx.TRANSPARENT_PEN)
@@ -4517,6 +4516,7 @@ class UltimateListLineData(object):
                 dc.SetBrush(wx.WHITE_BRUSH)
                 dc.SetPen(wx.TRANSPARENT_PEN)
                 dc.DrawRectangle(paintRect)
+
 
         x = rect.x + HEADER_OFFSET_X
         y = rect.y
@@ -5133,6 +5133,8 @@ class UltimateListHeaderWindow(wx.Control):
         # width and height of the entire header window
         w, h = self.GetClientSize()
         w, dummy = self._owner.CalcUnscrolledPosition(w, 0)
+
+        # Header Colors
         dc.SetBrush(wx.Brush(wx.SystemSettings.GetColour(wx.SYS_COLOUR_BTNFACE)))
         dc.SetPen(wx.TRANSPARENT_PEN)
         dc.DrawRectangle(0, -1, w, h+2)

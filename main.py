@@ -17,9 +17,11 @@ class Main:
 
         main_app = wx.App()
 
-        self.main_frame = ModManager(self, None)
-        self.main_frame.Show()
+        self.main_frame = ModManager(None, wx.ID_ANY, "")
         main_app.SetTopWindow(self.main_frame)
+        self.main_frame.set_main(self)
+        self.main_frame.Show()
+        self.main_frame.Center()
 
         main_app.MainLoop()
 
