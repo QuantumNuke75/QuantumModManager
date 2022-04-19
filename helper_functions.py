@@ -1,5 +1,6 @@
 import os
 import win32api
+import winreg, sys
 
 
 #
@@ -78,19 +79,37 @@ def get_profiles():
 # Get the Pak directory of Ready or Not.
 #
 def get_steam_dir():
-        # Python suuuuucks...
-        possible_game_path = [None]
+        try:
+            hkey = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, "SOFTWARE\WOW6432Node\Valve\Steam")
+            steam_path = winreg.QueryValueEx(hkey, "InstallPath")
+        except:
+            return None
 
-        drives = win32api.GetLogicalDriveStrings()
-        drives = drives.split('\000')[:-1]
-        for drive in drives:
-            try:
-                for file in os.scandir(drive):
-                    if os.path.isdir(file.path) and "$" not in file.path:
-                        find_folder(file.path,possible_game_path)
-            except:
-                continue
-        return possible_game_path[0]
+        lib_fold_file = open(steam_path[0] + "\\steamapps\\libraryfolders.vdf", "r")
+        possible_paths = []
+        for line in lib_fold_file.readlines():
+            if "path" in line:
+                possible_paths.append(line.replace("\n", "").split('"')[3])
+        for path in possible_paths:
+            if os.path.isdir(path + "\\steamapps\\common\\Ready or Not\\ReadyOrNot"):
+                return path + "\\steamapps\\common\\Ready or Not\\ReadyOrNot\\Content\\Paks"
+        return None
+
+
+
+        # # Python suuuuucks...
+        # possible_game_path = [None]
+        #
+        # drives = win32api.GetLogicalDriveStrings()
+        # drives = drives.split('\000')[:-1]
+        # for drive in drives:
+        #     try:
+        #         for file in os.scandir(drive):
+        #             if os.path.isdir(file.path) and "$" not in file.path:
+        #                 find_folder(file.path,possible_game_path)
+        #     except:
+        #         continue
+        # return possible_game_path[0]
 
 
 #

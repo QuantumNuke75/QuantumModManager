@@ -513,7 +513,7 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
             size = str(round(os.path.getsize(mod_path) / 1000000, 2)) + " MB"
 
             # Check for duplicates.
-            if mod_path_without_old and mod_path_with_old:
+            if os.path.exists(mod_path_without_old) and os.path.exists(mod_path_with_old):
                 # Remove likely older version.
                 os.remove(mod_path_with_old)
 
