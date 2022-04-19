@@ -5,10 +5,13 @@ import win32api
 #
 # Checks whether a mod is enabled or disabled.
 #
-def is_file_enabled(path, main):
-    if os.path.isfile(main.game_directory + "\\" +path):
+def is_file_enabled(path, category, main):
+
+    category = "" if category is None else category
+
+    if os.path.isfile(main.game_directory + "\\" + category + "\\" +path):
         return True
-    elif os.path.isfile(main.game_directory + "\\" +path + ".old"):
+    elif os.path.isfile(main.game_directory + "\\" + category + "\\" +path + ".old"):
         return False
     else:
         return False
@@ -17,17 +20,25 @@ def is_file_enabled(path, main):
 #
 # Enables a mod at a given path.
 #
-def enable_mod(path, main):
-    if os.path.isfile(main.game_directory + "\\" + path + ".old"):
-        os.rename(main.game_directory + "\\" + path + ".old", main.game_directory + "\\" + path)
+def enable_mod(path, category, main):
+    if category == "None":
+        if os.path.isfile(main.game_directory + "\\" + path + ".old"):
+            os.rename(main.game_directory + "\\" + path + ".old", main.game_directory + "\\" + path)
+    else:
+        if os.path.isfile(main.game_directory + "\\" + category + "\\" + path + ".old"):
+            os.rename(main.game_directory + "\\" + category + "\\" + path + ".old", main.game_directory + "\\" + category + "\\" + path)
 
 
 #
 # Disables a mod at a given path.
 #
-def disable_mod(path, main):
-    if os.path.isfile(main.game_directory + "\\" + path):
-        os.rename(main.game_directory + "\\" + path, main.game_directory + "\\" + path + ".old")
+def disable_mod(path, category, main):
+    if category == "None":
+        if os.path.isfile(main.game_directory + "\\" + path):
+            os.rename(main.game_directory + "\\" + path, main.game_directory + "\\" + path + ".old")
+    else:
+        if os.path.isfile(main.game_directory + "\\" + category + "\\" + path):
+            os.rename(main.game_directory + "\\" + category + "\\" + path, main.game_directory + "\\" + category + "\\" + path + ".old")
 
 
 #
@@ -39,6 +50,9 @@ def get_mods(main):
         for dir in dirs:
             if dir.name != "pakchunk0-WindowsNoEditor.pak" and dir.name != "pakchunk0-WindowsNoEditor_0_P.pak":
                 temp.append(dir.path)
+            if os.path.isdir(dir.path):
+                for item in os.scandir(dir.path):
+                    temp.append(item.path)
 
     return [x for x in temp if ".pak" in x]
 

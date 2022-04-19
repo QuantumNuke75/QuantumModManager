@@ -3,6 +3,7 @@ from py7zr import unpack_7zarchive
 import wx.lib.agw.ultimatelistctrl as wxu
 import wx.lib.buttons as wxb
 from wx.lib.embeddedimage import PyEmbeddedImage
+import wx.lib.mixins.listctrl as listmix
 
 import helper_functions
 
@@ -122,9 +123,9 @@ class ModFileDrop(wx.FileDropTarget):
 
 #-----------------------------------------------------------------------------------------------------------------------
 
-class ModManager(wx.Frame):
+class ModManager(wx.Frame, listmix.ColumnSorterMixin):
     def __init__(self, *args, **kwds):
-        kwds["style"] = kwds.get("style", 0)
+        kwds["style"] = style=wx.RESIZE_BORDER
         wx.Frame.__init__(self, *args, **kwds)
 
         shutil.register_unpack_format('7zip', ['.7z'], unpack_7zarchive)
@@ -145,8 +146,8 @@ class ModManager(wx.Frame):
         self.panelTitleBar.Bind(wx.EVT_MOTION, self.OnMouseMove)
 
 
-        self._isClickedDown = False;
-        self._LastPosition = self.GetPosition();
+        self._isClickedDown = False
+        self._LastPosition = self.GetPosition()
 
 
         self.__set_properties()
@@ -175,6 +176,11 @@ class ModManager(wx.Frame):
         self.panelTitleBar.SetBackgroundColour(wx.Colour("#911"))
         self.panelBody.SetBackgroundColour(wx.Colour("#252525"))
 
+
+    def GetListCtrl(self):
+        return self.mod_selector
+
+
     def __do_layout(self):
 
         sizer_1 = wx.BoxSizer(wx.VERTICAL)
@@ -202,10 +208,10 @@ class ModManager(wx.Frame):
         sizer_1.Add(grid_sizer_1, 1, wx.EXPAND, 0)
 
         ##############################
-        # Start customizable section.#
+        # Start customizable section #
         ##############################
 
-        self.current_version = 3.1
+        self.current_version = 3.4
 
         self.current_item = None
         self.previous_item = None
@@ -306,7 +312,7 @@ class ModManager(wx.Frame):
         outer_horz_sizer.Add(self.right_panel, 1, wx.EXPAND | wx.RIGHT, 5)
         outer_horz_sizer.Add((3, -1))
 
-
+        listmix.ColumnSorterMixin.__init__(self, 5)
         self.SetSizer(sizer_1)
         self.Layout()
 
@@ -336,21 +342,27 @@ class ModManager(wx.Frame):
 
 
     def create_mod_selector(self):
-        self.mod_selector = CustomUltimateListCtrl.UltimateListCtrl(self.right_panel, agwStyle=wx.LC_REPORT | wxu.ULC_NO_HIGHLIGHT | wxu.ULC_SINGLE_SEL)
+        self.mod_selector = wxu.UltimateListCtrl(self.right_panel, agwStyle=wx.LC_REPORT | wxu.ULC_NO_HIGHLIGHT | wxu.ULC_SINGLE_SEL)
         self.mod_selector.Bind(wx.EVT_MOTION, self.OnMouseOver)
         self.mod_selector.Bind(wx.EVT_LEAVE_WINDOW, self.OnMouseLeave)
+
+        #self.mod_selector._mainWin.ShowScrollbars(horz=wx.SHOW_SB_DEFAULT, vert=wx.SHOW_SB_DEFAULT)
 
         self.mod_selector.SetForegroundColour(wx.Colour(text_color))
         self.mod_selector.SetBackgroundColour(wx.Colour("#141414"))
         self.mod_selector.SetTextColour(wx.Colour(text_color))
 
         self.mod_selector.InsertColumn(0, 'Mod', width=200)
-        self.mod_selector.InsertColumn(1, 'Size')
-        self.mod_selector.InsertColumn(2, 'Full Name', width=240)
-        self.mod_selector.InsertColumn(3, 'Created')
+        self.mod_selector.InsertColumn(1, 'Category')
+        self.mod_selector.InsertColumn(2, 'Size')
+        self.mod_selector.InsertColumn(3, 'Full Name', width=240)
+        self.mod_selector.InsertColumn(4, 'Created')
 
         self.mod_selector.SetHeaderCustomRenderer(UltimateHeaderRenderer(self.mod_selector))
         self.mod_selector.SetDropTarget(ModFileDrop(self.right_panel, self))
+
+        self.Bind(wx.EVT_LIST_COL_CLICK, self.OnHeaderClick, self.mod_selector)
+
 
     def create_profile_selector(self):
         self.profile_selector = wxu.UltimateListCtrl(self.right_panel, agwStyle = wx.LC_REPORT | wxu.ULC_NO_HEADER | wxu.ULC_SINGLE_SEL)
@@ -361,6 +373,7 @@ class ModManager(wx.Frame):
 
         self.profile_selector.InsertColumn(0, 'Profile')
         self.profile_selector.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnProfileClick)
+
 
     def create_mod_settings(self, mod_settings_sizer):
 
@@ -427,33 +440,34 @@ class ModManager(wx.Frame):
         profile_options.Add(delete_profile)
         profile_options.Add(self.profile_textctrl, proportion=1)
 
-    def create_warning_message(self, warning_pane):
 
-        response = None
+    def create_warning_message(self, warning_pane):
         try:
             # Send a response to the page with the version number.
             response = requests.get('https://unofficial-modding-guide.com/tools.html')
+            # If we got a response back.
+            if response is not None and str(response.reason) == "OK":
+                # Get the version from the striped HTML.
+                version = float(str(response.content).split("Quantum Mod Manager")[1][2:5])
+                # If out version is lower, show update button.
+                if version > self.current_version:
+                    self.newest_version = version
+                    warning_message = wx.StaticText(self.right_panel,
+                                                    label="Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.exe")
+                    warning_message.SetForegroundColour(wx.Colour(text_color))
+
+                    warning_button = wx.Button(self.right_panel, label="Download")
+                    warning_button.SetForegroundColour(wx.Colour(text_color))
+                    warning_button.SetBackgroundColour(wx.Colour("#141414"))
+
+                    warning_button.Bind(wx.EVT_BUTTON, self.OnDownloadLatest)
+
+                    warning_pane.Add(warning_message, flag=wx.TOP, border=7)
+                    warning_pane.Add(warning_button, flag=wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.TOP, border=5)
         except:
             ...
 
-        # If we got a response back.
-        if response is not None and str(response.reason) == "OK":
-            # Get the version from the striped HTML.
-            version = float(str(response.content).split("Quantum Mod Manager")[1][2:5])
-            # If out version is lower, show update button.
-            if version > self.current_version:
-                self.newest_version = version
-                warning_message = wx.StaticText(self.right_panel, label = "Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.exe")
-                warning_message.SetForegroundColour(wx.Colour(text_color))
 
-                warning_button = wx.Button(self.right_panel, label="Download")
-                warning_button.SetForegroundColour(wx.Colour(text_color))
-                warning_button.SetBackgroundColour(wx.Colour("#141414"))
-
-                warning_button.Bind(wx.EVT_BUTTON, self.OnDownloadLatest)
-
-                warning_pane.Add(warning_message, flag=wx.TOP, border=7)
-                warning_pane.Add(warning_button, flag=wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.TOP, border=5)
 
     def create_profiles_text(self, right_panel_vert_sizer):
         header_font = wx.Font(18, wx.FONTFAMILY_DEFAULT, wx.NORMAL, wx.NORMAL)
@@ -482,40 +496,42 @@ class ModManager(wx.Frame):
     def refresh_mods(self):
         mods_list = []
 
+        # Get list of all mods as a file path.
         mods = helper_functions.get_mods(self.main)
 
-        for mod in mods:
+        for mod_path in mods:
+
+            # Vars
+            mod_path_without_old = mod_path.replace(".old", "")
+            mod_path_with_old = mod_path_without_old + ".old"
+            regex_prepped_name = self.get_regex_prep_name(mod_path)
+            regexed_name = self.get_regex_name(regex_prepped_name)
+            category = self.get_category(mod_path)
+            full_name_without_old = mod_path_without_old.split("\\")[-1]
+            full_name_with_old = mod_path_with_old.split("\\")[-1]
+            time = os.path.getctime(mod_path)
+            size = str(round(os.path.getsize(mod_path) / 1000000, 2)) + " MB"
 
             # Check for duplicates.
-            if os.path.isfile(mod.replace(".old", "")) and os.path.isfile(mod.replace(".old", "") + ".old"):
+            if mod_path_without_old and mod_path_with_old:
                 # Remove likely older version.
-                os.remove(mod.replace(".old", "") + ".old")
+                os.remove(mod_path_with_old)
 
                 # Check if we are on the older version, if so, skip. Eventually, we should read metadata to ensure which
                 # file is older / younger.
-                if mod == mod.replace(".old", "") + ".old":
+                if mod_path == mod_path_with_old:
                     continue
 
 
-            name = mod.split("\\")[-1] # Get file name with extension.
-            name = name.split("-", maxsplit=1)[-1] # Get file name without pakchunk99
-            name = name.split(".")[0] # Remove extenstion
-            name = name.replace("_P", "") # Remove patch file modifier.
-            name = name.replace("Mods", "") # Remove mods.
-            name = name.replace("_", "") # Remove left over _'s
-            name = name.replace("-", "") # Remove left over -'s
-            name = name.replace(" ", "") # Prepare for camelcase regex.
-
-            # Regex to separate camelcase and re-add to string.
-            name_list = re.findall(r'[A-Z,0-9](?:[a-z]+|[A-Z,0-9]*(?=[A-Z,0-9]|$))', name)
-            final_name = ""
-            for item in name_list:
-                final_name += item + " "
-            final_name.strip(" ")
-
-            # Remove .old extension.
-            path = mod.replace(".old", "")
-            mods_list.append((final_name, str(round(os.path.getsize(mod) / 1000000, 2)) + " MB", path.split("\\")[-1]))
+            # name category size fullname, date
+            mods_list.append( (
+                (regexed_name if len(regexed_name) > 0 else regex_prepped_name), #name
+                str(category), #category
+                size, #size
+                full_name_without_old, # full name
+                str(datetime.datetime.fromtimestamp(time).strftime('%d-%m-%Y')) #date
+                )
+            )
 
         # Remove all the items from the list so we can add them back.
         self.mod_selector.DeleteAllItems()
@@ -523,22 +539,52 @@ class ModManager(wx.Frame):
         # Sorts mod by alphabetized.
         mods_list = sorted(mods_list)
 
-        idx = 0
-        for i in mods_list:
-            # Create new item row with a selection box
-            index = self.mod_selector.InsertStringItem(idx, str(i[0]), it_kind=1)
-            self.mod_selector.SetStringItem(index, 1, str(i[1]))
-            self.mod_selector.SetStringItem(index, 2, str(i[2]))
-            name = str(i[2]) if os.path.isfile(self.main.game_directory + "\\" + str(i[2])) else str(i[2]) + ".old"
-            time = os.path.getctime(self.main.game_directory + "\\" + name)
-            self.mod_selector.SetStringItem(index, 3, str(datetime.datetime.fromtimestamp(time).strftime('%d-%m-%Y')))
+        for rowIndex, data in enumerate(mods_list):
+            for colIndex, coldata in enumerate(data):
+                if colIndex == 0:
+                    self.mod_selector.InsertStringItem(rowIndex, coldata, it_kind=1)
 
-            # If the file is enabled.
-            if helper_functions.is_file_enabled(i[2], self.main):
-                item = self.mod_selector.GetItem(index, 0)
-                item.Check(True)
-                self.mod_selector.SetItem(item)
-            idx += 1
+                    # If the file is enabled.
+                    if helper_functions.is_file_enabled(data[3], data[1], self.main):
+                        item = self.mod_selector.GetItem(rowIndex, 0)
+                        item.Check(True)
+                        self.mod_selector.SetItem(item)
+                else:
+                    self.mod_selector.SetStringItem(rowIndex, colIndex, coldata)
+            self.mod_selector.SetItemData(rowIndex, data)
+
+        self.itemDataMap = {data: data for data in mods_list}
+
+
+    def get_regex_prep_name(self, mod_path):
+        name = mod_path.split("\\")[-1]  # Get file name with extension.
+        name = name.split("-", maxsplit=1)[-1]  # Get file name without pakchunk99
+        name = name.split(".")[0]  # Remove extenstion
+        name = name.replace("_P", "")  # Remove patch file modifier.
+        name = name.replace("Mods", "")  # Remove mods.
+        name = name.replace("_", "")  # Remove left over _'s
+        name = name.replace("-", "")  # Remove left over -'s
+        name = name.replace(" ", "")  # Prepare for camelcase regex.
+        return name
+
+
+    def get_regex_name(self, regex_prepped_name):
+            name_list = re.findall(r'[A-Z,0-9](?:[a-z]+|[A-Z,0-9]*(?=[A-Z,0-9]|$))', regex_prepped_name)
+            final_name = ""
+            for item in name_list:
+                final_name += item + " "
+            final_name.strip(" ")
+            return final_name
+
+
+    def get_category(self, mod_path):
+            category = mod_path.split("Paks")[1]
+            category = category.split("\\")
+            if ".pak" in category[1]:
+                category = None
+            else:
+                category = category[1]
+            return category
 
 
     #
@@ -611,9 +657,12 @@ class ModManager(wx.Frame):
 
         for i in range(num):
             if self.mod_selector.IsItemChecked(i):
-                helper_functions.enable_mod(self.mod_selector.GetItem(i, col=2).GetText(), self.main)
+                helper_functions.enable_mod(self.mod_selector.GetItem(i, col=3).GetText(), self.mod_selector.GetItem(i, col=1).GetText(), self.main)
             else:
-                helper_functions.disable_mod(self.mod_selector.GetItem(i, col=2).GetText(), self.main)
+                helper_functions.disable_mod(self.mod_selector.GetItem(i, col=3).GetText(), self.mod_selector.GetItem(i, col=1).GetText(), self.main)
+
+    def OnHeaderClick(self, event):
+        pass
 
 
     def OnLoadProfile(self, event):
@@ -627,7 +676,7 @@ class ModManager(wx.Frame):
         enabled_mods = json.load(file).keys()
 
         for i in range(self.mod_selector.GetItemCount()):
-            if self.mod_selector.GetItem(i, col=2).GetText() in enabled_mods:
+            if self.mod_selector.GetItem(i, col=3).GetText() in enabled_mods:
 
                 item = self.mod_selector.GetItem(i, 0)
                 item.Check(True)
@@ -649,7 +698,7 @@ class ModManager(wx.Frame):
         mods_dict = {}
         for i in range(self.mod_selector.GetItemCount()):
             if self.mod_selector.IsItemChecked(i):
-                mods_dict[self.mod_selector.GetItem(i, col=2).GetText()] = True
+                mods_dict[self.mod_selector.GetItem(i, col=3).GetText()] = True
         json.dump(mods_dict, file)
         file.close()
 
@@ -699,7 +748,7 @@ class ModManager(wx.Frame):
     def OnDownloadLatest(self, event):
 
         # Download file.
-        url = 'http://unofficial-modding-guide.com/downloads/QuantumModManager.exe'
+        url = 'https://github.com/QuantumNuke75/Unofficial-Modding-Guide/raw/gh-pages/downloads/QuantumModManager.exe'
         r = requests.get(url, stream=True)
         with open(f"QuantumModManager v{self.newest_version}.exe", "wb") as exe:
             for chunk in r.iter_content(chunk_size=1024):
@@ -720,7 +769,6 @@ class ModManager(wx.Frame):
 
     def OnBtnMinimizeClick(self, event):
         self.Iconize( True )
-
 
     def OnBtnMaximizeClick(self, event):
         self.Maximize(not self.IsMaximized())

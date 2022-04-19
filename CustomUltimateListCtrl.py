@@ -7073,6 +7073,7 @@ class UltimateListMainWindow(wx.ScrolledWindow):
         # Note: a wxPaintDC must be constructed even if no drawing is
         # done (a Windows requirement).
 
+        print(self)
         self.ShowScrollbars(horz=wx.SHOW_SB_DEFAULT, vert=wx.SHOW_SB_NEVER)
 
         dc = wx.BufferedPaintDC(self)
