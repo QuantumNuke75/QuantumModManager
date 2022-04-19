@@ -94,39 +94,3 @@ def get_steam_dir():
             if os.path.isdir(path + "\\steamapps\\common\\Ready or Not\\ReadyOrNot"):
                 return path + "\\steamapps\\common\\Ready or Not\\ReadyOrNot\\Content\\Paks"
         return None
-
-
-
-        # # Python suuuuucks...
-        # possible_game_path = [None]
-        #
-        # drives = win32api.GetLogicalDriveStrings()
-        # drives = drives.split('\000')[:-1]
-        # for drive in drives:
-        #     try:
-        #         for file in os.scandir(drive):
-        #             if os.path.isdir(file.path) and "$" not in file.path:
-        #                 find_folder(file.path,possible_game_path)
-        #     except:
-        #         continue
-        # return possible_game_path[0]
-
-
-#
-# Recursive function to find the Paks directory.
-#
-def find_folder(path, possible_game_path, depth=0):
-        if possible_game_path[0] is not None:
-            return
-
-        try:
-            for file in os.scandir(path):
-                if os.path.isdir(file.path) and "$" not in file.path:
-                    if file.name == "Steam" and os.path.isdir(file.path + "\\steamapps\\common\\Ready or Not\\ReadyOrNot"):
-                        possible_game_path[0] = file.path + "\\steamapps\\common\\Ready or Not\\ReadyOrNot\\Content\\Paks"
-                        return
-                    if depth >= 3:
-                        return
-                    find_folder(file.path, possible_game_path, depth + 1)
-        except:
-            return
