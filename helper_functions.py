@@ -8,11 +8,11 @@ import winreg, sys
 #
 def is_file_enabled(path, category, main):
 
-    category = "" if category is None else category
+    new_category = "" if category == "None" else "\\" + category
 
-    if os.path.isfile(main.game_directory + "\\" + category + "\\" +path):
+    if os.path.isfile(main.game_directory + new_category + "\\" +path):
         return True
-    elif os.path.isfile(main.game_directory + "\\" + category + "\\" +path + ".old"):
+    elif os.path.isfile(main.game_directory + new_category + "\\" +path + ".old"):
         return False
     else:
         return False

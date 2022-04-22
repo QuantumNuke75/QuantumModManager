@@ -1,4 +1,6 @@
 import json, os, wx, requests, sys, re, shutil, subprocess, datetime
+import pathlib
+
 from py7zr import unpack_7zarchive
 import wx.lib.agw.ultimatelistctrl as wxu
 import wx.lib.buttons as wxb
@@ -130,7 +132,7 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
 
         shutil.register_unpack_format('7zip', ['.7z'], unpack_7zarchive)
 
-        self.SetSize((750, 500))
+        self.SetSize((800, 500))
 
         # Creting the custom title bar
         self.panelTitleBar = wx.Panel(self, wx.ID_ANY)
@@ -211,7 +213,7 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
         # Start customizable section #
         ##############################
 
-        self.current_version = 3.4
+        self.current_version = 3.5
 
         self.current_item = None
         self.previous_item = None
@@ -278,6 +280,12 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
 
         bottom_buttons = wx.BoxSizer(wx.HORIZONTAL)
         button_color = wx.Colour("#141414")
+
+        # Open Pak Folder
+        pak_folder_button = wx.Button(self.right_panel, label='Open Pak Folder', size=(-1, 30))
+        pak_folder_button.SetBackgroundColour(button_color)
+        pak_folder_button.SetForegroundColour(wx.Colour(text_color))
+
         # Change Game Path button.
         game_path_button = wx.Button(self.right_panel, label='Change Game Path', size=(-1, 30))
         game_path_button.SetBackgroundColour(button_color)
@@ -288,9 +296,11 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
         run_ready_or_not.SetBackgroundColour(button_color)
         run_ready_or_not.SetForegroundColour(wx.Colour(text_color))
 
+        pak_folder_button.Bind(wx.EVT_BUTTON, self.OnOpenPakFolder)
         game_path_button.Bind(wx.EVT_BUTTON, self.OnChangeGamePath)
         run_ready_or_not.Bind(wx.EVT_BUTTON, self.OnRunReadyOrNot)
 
+        bottom_buttons.Add(pak_folder_button, proportion=1)
         bottom_buttons.Add(game_path_button, proportion=1)
         bottom_buttons.Add(run_ready_or_not, proportion=1)
 
@@ -312,10 +322,9 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
         outer_horz_sizer.Add(self.right_panel, 1, wx.EXPAND | wx.RIGHT, 5)
         outer_horz_sizer.Add((3, -1))
 
-        listmix.ColumnSorterMixin.__init__(self, 5)
+        listmix.ColumnSorterMixin.__init__(self, 6)
         self.SetSizer(sizer_1)
         self.Layout()
-
 
 
     def setup_logic(self):
@@ -354,9 +363,10 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
 
         self.mod_selector.InsertColumn(0, 'Mod', width=200)
         self.mod_selector.InsertColumn(1, 'Category')
-        self.mod_selector.InsertColumn(2, 'Size')
-        self.mod_selector.InsertColumn(3, 'Full Name', width=240)
-        self.mod_selector.InsertColumn(4, 'Created')
+        self.mod_selector.InsertColumn(2, 'Load Order')
+        self.mod_selector.InsertColumn(3, 'Size')
+        self.mod_selector.InsertColumn(4, 'Full Name', width=240)
+        self.mod_selector.InsertColumn(5, 'Created')
 
         self.mod_selector.SetHeaderCustomRenderer(UltimateHeaderRenderer(self.mod_selector))
         self.mod_selector.SetDropTarget(ModFileDrop(self.right_panel, self))
@@ -468,7 +478,6 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
             ...
 
 
-
     def create_profiles_text(self, right_panel_vert_sizer):
         header_font = wx.Font(18, wx.FONTFAMILY_DEFAULT, wx.NORMAL, wx.NORMAL)
         header_font.SetPointSize(12)
@@ -487,7 +496,6 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
         mods_text.SetForegroundColour(wx.Colour(text_color))
         mods_text.SetFont(header_font.Bold())
         right_panel_vert_sizer.Add(mods_text)
-
 
 
     #
@@ -510,7 +518,8 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
             full_name_without_old = mod_path_without_old.split("\\")[-1]
             full_name_with_old = mod_path_with_old.split("\\")[-1]
             time = os.path.getctime(mod_path)
-            size = str(round(os.path.getsize(mod_path) / 1000000, 2)) + " MB"
+            size = round(os.path.getsize(mod_path) / 1000000, 2)
+            loadorder = int("".join(filter(str.isdigit, full_name_without_old.replace("pakchunk", "")[0:3])))
 
             # Check for duplicates.
             if os.path.exists(mod_path_without_old) and os.path.exists(mod_path_with_old):
@@ -523,10 +532,11 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
                     continue
 
 
-            # name category size fullname, date
+            # name category loadorder size fullname, date
             mods_list.append( (
                 (regexed_name if len(regexed_name) > 0 else regex_prepped_name), #name
                 str(category), #category
+                loadorder, #loadorder
                 size, #size
                 full_name_without_old, # full name
                 str(datetime.datetime.fromtimestamp(time).strftime('%d-%m-%Y')) #date
@@ -545,12 +555,14 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
                     self.mod_selector.InsertStringItem(rowIndex, coldata, it_kind=1)
 
                     # If the file is enabled.
-                    if helper_functions.is_file_enabled(data[3], data[1], self.main):
+                    if helper_functions.is_file_enabled(data[4], data[1], self.main):
                         item = self.mod_selector.GetItem(rowIndex, 0)
                         item.Check(True)
                         self.mod_selector.SetItem(item)
+                elif colIndex == 3:
+                    self.mod_selector.SetStringItem(rowIndex, colIndex, str(coldata) + " MB")
                 else:
-                    self.mod_selector.SetStringItem(rowIndex, colIndex, coldata)
+                    self.mod_selector.SetStringItem(rowIndex, colIndex, str(coldata))
             self.mod_selector.SetItemData(rowIndex, data)
 
         self.itemDataMap = {data: data for data in mods_list}
@@ -569,12 +581,23 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
 
 
     def get_regex_name(self, regex_prepped_name):
-            name_list = re.findall(r'[A-Z,0-9](?:[a-z]+|[A-Z,0-9]*(?=[A-Z,0-9]|$))', regex_prepped_name)
+
+            # Make sure first char is upper.
+            regex_prepped_name = regex_prepped_name[0].upper() + regex_prepped_name[1:]
+
+            name_list = re.findall(r'[A-Z,0-9,()](?:[a-z]+|[A-Z,0-9,()]*(?=[A-Z,0-9,()]|$))', regex_prepped_name)
+
             final_name = ""
             for item in name_list:
                 final_name += item + " "
-            final_name.strip(" ")
+
+            # Replace parens.
+            final_name = final_name.replace("(", " ").replace(")", " ").strip(" ")
+
+
+
             return final_name
+
 
 
     def get_category(self, mod_path):
@@ -657,9 +680,9 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
 
         for i in range(num):
             if self.mod_selector.IsItemChecked(i):
-                helper_functions.enable_mod(self.mod_selector.GetItem(i, col=3).GetText(), self.mod_selector.GetItem(i, col=1).GetText(), self.main)
+                helper_functions.enable_mod(self.mod_selector.GetItem(i, col=4).GetText(), self.mod_selector.GetItem(i, col=1).GetText(), self.main)
             else:
-                helper_functions.disable_mod(self.mod_selector.GetItem(i, col=3).GetText(), self.mod_selector.GetItem(i, col=1).GetText(), self.main)
+                helper_functions.disable_mod(self.mod_selector.GetItem(i, col=4).GetText(), self.mod_selector.GetItem(i, col=1).GetText(), self.main)
 
     def OnHeaderClick(self, event):
         pass
@@ -671,22 +694,24 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
             return
 
         self.refresh_mods()
+        try:
+            file = open("Profiles\\" + profile_name + ".json", "r")
+            enabled_mods = json.load(file).keys()
 
-        file = open("Profiles\\" + profile_name + ".json", "r")
-        enabled_mods = json.load(file).keys()
+            for i in range(self.mod_selector.GetItemCount()):
+                if self.mod_selector.GetItem(i, col=4).GetText() in enabled_mods:
 
-        for i in range(self.mod_selector.GetItemCount()):
-            if self.mod_selector.GetItem(i, col=3).GetText() in enabled_mods:
+                    item = self.mod_selector.GetItem(i, 0)
+                    item.Check(True)
+                    self.mod_selector.SetItem(item)
+                else:
+                    item = self.mod_selector.GetItem(i, 0)
+                    item.Check(False)
+                    self.mod_selector.SetItem(item)
 
-                item = self.mod_selector.GetItem(i, 0)
-                item.Check(True)
-                self.mod_selector.SetItem(item)
-            else:
-                item = self.mod_selector.GetItem(i, 0)
-                item.Check(False)
-                self.mod_selector.SetItem(item)
-
-        file.close()
+            file.close()
+        except:
+            ...
 
 
     def OnSaveProfile(self, event):
@@ -698,7 +723,7 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
         mods_dict = {}
         for i in range(self.mod_selector.GetItemCount()):
             if self.mod_selector.IsItemChecked(i):
-                mods_dict[self.mod_selector.GetItem(i, col=3).GetText()] = True
+                mods_dict[self.mod_selector.GetItem(i, col=4).GetText()] = True
         json.dump(mods_dict, file)
         file.close()
 
@@ -715,6 +740,11 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
 
     def OnProfileClick(self, event):
         self.profile_textctrl.SetValue(event.GetText())
+
+
+    def OnOpenPakFolder(self, event):
+        EXPLORER = os.environ['SystemRoot'] + '\\explorer.exe'
+        os.spawnl(os.P_NOWAIT, EXPLORER, '.', '/n,/e,"%s"' % pathlib.Path(self.main.game_directory + "\\"))
 
 
     def OnChangeGamePath(self, event):
