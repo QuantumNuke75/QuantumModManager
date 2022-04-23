@@ -1,9 +1,7 @@
-import json, os, wx, requests, sys, re, shutil, subprocess, datetime
-import pathlib
+import json, os, wx, requests, sys, re, shutil, subprocess, datetime, pathlib
 
 from py7zr import unpack_7zarchive
 import wx.lib.agw.ultimatelistctrl as wxu
-import wx.lib.buttons as wxb
 from wx.lib.embeddedimage import PyEmbeddedImage
 import wx.lib.mixins.listctrl as listmix
 
@@ -213,7 +211,7 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
         # Start customizable section #
         ##############################
 
-        self.current_version = 3.5
+        self.current_version = 3.6
 
         self.current_item = None
         self.previous_item = None
@@ -311,10 +309,25 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
         #
         # Version Warning
         #
-        warning_pane = wx.BoxSizer(wx.HORIZONTAL)
-        self.create_warning_message(warning_pane)
-        right_panel_vert_sizer.Add(warning_pane, flag=wx.EXPAND)
+        self.warning_pane = wx.BoxSizer(wx.VERTICAL)
 
+        header_font = wx.Font(18, wx.FONTFAMILY_DEFAULT, wx.NORMAL, wx.NORMAL)
+        header_font.SetPointSize(12)
+
+        warning_text = wx.StaticText(self.right_panel, label="Warnings")
+        warning_text.SetForegroundColour(wx.Colour(text_color))
+        warning_text.SetFont(header_font.Bold())
+
+
+        self.warning_pane.Add(warning_text)
+        self.create_warning_message()
+        self.warning_pane.ShowItems(False)
+
+        if len(self.warning_pane.Children) > 0:
+            self.warning_pane.ShowItems(True)
+
+
+        right_panel_vert_sizer.Add(self.warning_pane, flag=wx.EXPAND)
         self.right_panel.SetSizer(right_panel_vert_sizer)
 
         # Add left and right panels to main sizer
@@ -372,6 +385,7 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
         self.mod_selector.SetDropTarget(ModFileDrop(self.right_panel, self))
 
         self.Bind(wx.EVT_LIST_COL_CLICK, self.OnHeaderClick, self.mod_selector)
+        self.mod_selector.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.ModSelectorRightClick)
 
 
     def create_profile_selector(self):
@@ -451,7 +465,7 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
         profile_options.Add(self.profile_textctrl, proportion=1)
 
 
-    def create_warning_message(self, warning_pane):
+    def create_warning_message(self):
         try:
             # Send a response to the page with the version number.
             response = requests.get('https://unofficial-modding-guide.com/tools.html')
@@ -462,8 +476,11 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
                 # If out version is lower, show update button.
                 if version > self.current_version:
                     self.newest_version = version
+
+                    horz_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
                     warning_message = wx.StaticText(self.right_panel,
-                                                    label="Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.exe")
+                                                    label="- Version Outdated: https://unofficial-modding-guide.com/downloads/QuantumModManager.exe")
                     warning_message.SetForegroundColour(wx.Colour(text_color))
 
                     warning_button = wx.Button(self.right_panel, label="Download")
@@ -472,10 +489,28 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
 
                     warning_button.Bind(wx.EVT_BUTTON, self.OnDownloadLatest)
 
-                    warning_pane.Add(warning_message, flag=wx.TOP, border=7)
-                    warning_pane.Add(warning_button, flag=wx.LEFT | wx.RIGHT | wx.BOTTOM | wx.TOP, border=5)
+                    horz_sizer.Add(warning_message, flag=wx.TOP, border=7)
+                    horz_sizer.Add(warning_button, flag=wx.LEFT | wx.RIGHT | wx.TOP, border=3)
+                    self.warning_pane.Add(horz_sizer)
         except:
             ...
+
+
+    def create_category_warning(self):
+        self.warning_pane.ShowItems(True)
+        warning_message = wx.StaticText(self.right_panel, label="- Mods in subfolders may not load properly.")
+        warning_message.SetForegroundColour(wx.Colour(text_color))
+        self.warning_pane.Add(warning_message, flag=wx.TOP, border=4)
+        self.right_panel.Hide()
+        self.right_panel.Show()
+        self.Layout()
+
+    def are_mods_in_categories(self):
+        for i in range(0, self.mod_selector.GetItemCount()):
+            if self.mod_selector.GetItem(i, col=1).GetText() != "None":
+                return True
+        return False
+
 
 
     def create_profiles_text(self, right_panel_vert_sizer):
@@ -507,6 +542,9 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
         # Get list of all mods as a file path.
         mods = helper_functions.get_mods(self.main)
 
+        # Conflicting mods list.
+        self.conflicting_files = {}
+
         for mod_path in mods:
 
             # Vars
@@ -519,7 +557,10 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
             full_name_with_old = mod_path_with_old.split("\\")[-1]
             time = os.path.getctime(mod_path)
             size = round(os.path.getsize(mod_path) / 1000000, 2)
-            loadorder = int("".join(filter(str.isdigit, full_name_without_old.replace("pakchunk", "")[0:3])))
+            try:
+                loadorder = int("".join(filter(str.isdigit, full_name_without_old.replace("pakchunk", "")[0:3])))
+            except:
+                loadorder = 99
 
             # Check for duplicates.
             if os.path.exists(mod_path_without_old) and os.path.exists(mod_path_with_old):
@@ -543,6 +584,12 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
                 )
             )
 
+            if helper_functions.is_file_enabled(full_name_without_old, str(category), self.main):
+                try:
+                    self.retrieve_uassets(mod_path, full_name_without_old)
+                except:
+                    ...
+
         # Remove all the items from the list so we can add them back.
         self.mod_selector.DeleteAllItems()
 
@@ -559,6 +606,7 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
                         item = self.mod_selector.GetItem(rowIndex, 0)
                         item.Check(True)
                         self.mod_selector.SetItem(item)
+
                 elif colIndex == 3:
                     self.mod_selector.SetStringItem(rowIndex, colIndex, str(coldata) + " MB")
                 else:
@@ -568,11 +616,42 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
         self.itemDataMap = {data: data for data in mods_list}
 
 
+        # Remove category warning.
+        if len(self.warning_pane.Children) > 2:
+            self.warning_pane.Remove(2)
+
+        if self.are_mods_in_categories():
+            self.create_category_warning()
+
+        self.conflicting_mod_pairs = []
+        for conflicting_file in filter(lambda x: len(x) > 1, self.conflicting_files.values()):
+            for i in range(0, len(conflicting_file)):
+                for j in range(i+1, len(conflicting_file)):
+                    if (conflicting_file[i], conflicting_file[j]) not in self.conflicting_mod_pairs and (conflicting_file[j], conflicting_file[i]) not in self.conflicting_mod_pairs:
+                        self.conflicting_mod_pairs.append( (conflicting_file[i], conflicting_file[j]) )
+        print(self.conflicting_mod_pairs)
+
+
+    def retrieve_uassets(self, path, fullname_without_old):
+        with open(path, "rb") as stream:
+            uncleaned_names = helper_functions.read_index(stream)
+            uncleaned_names = uncleaned_names[0]
+            stream.close()
+
+        for uncleaned in uncleaned_names.split(".uasset")[:-1]:
+            cleaned = helper_functions.get_completely_clean_name(uncleaned)
+            if cleaned in self.conflicting_files.keys() and fullname_without_old not in self.conflicting_files[cleaned]:
+                self.conflicting_files[cleaned].append(fullname_without_old)
+            else:
+                self.conflicting_files[cleaned] = [fullname_without_old]
+
+
     def get_regex_prep_name(self, mod_path):
         name = mod_path.split("\\")[-1]  # Get file name with extension.
         name = name.split("-", maxsplit=1)[-1]  # Get file name without pakchunk99
         name = name.split(".")[0]  # Remove extenstion
-        name = name.replace("_P", "")  # Remove patch file modifier.
+        if name[-2:] == "_P":
+            name = name[:-2]
         name = name.replace("Mods", "")  # Remove mods.
         name = name.replace("_", "")  # Remove left over _'s
         name = name.replace("-", "")  # Remove left over -'s
@@ -593,8 +672,6 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
 
             # Replace parens.
             final_name = final_name.replace("(", " ").replace(")", " ").strip(" ")
-
-
 
             return final_name
 
@@ -628,6 +705,42 @@ class ModManager(wx.Frame, listmix.ColumnSorterMixin):
     ###################
     # Interact Events #
     ###################
+    def ModSelectorRightClick(self, event):
+        self.mod_selector_menu_index = event.GetIndex()
+
+        ### 2. Launcher creates wxMenu. ###
+        menu = wx.Menu()
+        menu.Append(1001, "Enable")
+        menu.Append(1002, "Disable")
+        menu.Append(1003, "Delete")
+        menu.Bind(wx.EVT_MENU, self.ModSelectorMenuClick)
+
+        self.PopupMenu(menu, wx._core.Point(event.GetPoint().x + 20, event.GetPoint().y + 50))
+
+        menu.Destroy()
+
+    def ModSelectorMenuClick(self, event):
+        if event.GetId() == 1001:
+            helper_functions.enable_mod(self.mod_selector.GetItem(self.mod_selector_menu_index, col=4).GetText(), self.mod_selector.GetItem(self.mod_selector_menu_index, col=1).GetText(), self.main)
+            item = self.mod_selector.GetItem(self.mod_selector_menu_index, 0)
+            item.Check(True)
+            self.mod_selector.SetItem(item)
+
+        elif event.GetId() == 1002:
+            helper_functions.disable_mod(self.mod_selector.GetItem(self.mod_selector_menu_index, col=4).GetText(),
+                                        self.mod_selector.GetItem(self.mod_selector_menu_index, col=1).GetText(),
+                                        self.main)
+            item = self.mod_selector.GetItem(self.mod_selector_menu_index, 0)
+            item.Check(False)
+            self.mod_selector.SetItem(item)
+
+        elif event.GetId() == 1003:
+            helper_functions.delete_mod(self.mod_selector.GetItem(self.mod_selector_menu_index, col=4).GetText(),
+                                        self.mod_selector.GetItem(self.mod_selector_menu_index, col=1).GetText(),
+                                        self.main)
+            self.refresh_mods()
+
+
     def OnMouseLeave(self, event):
         if self.current_item is not None:
             self.mod_selector.SetItemBackgroundColour(self.current_item, wx.Colour(wx.Colour("#141414")))

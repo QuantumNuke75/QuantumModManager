@@ -1,7 +1,5 @@
-import os
-import win32api
-import winreg, sys
-
+import os, winreg, io
+from struct import unpack as st_unpack
 
 #
 # Checks whether a mod is enabled or disabled.
@@ -40,6 +38,22 @@ def disable_mod(path, category, main):
     else:
         if os.path.isfile(main.game_directory + "\\" + category + "\\" + path):
             os.rename(main.game_directory + "\\" + category + "\\" + path, main.game_directory + "\\" + category + "\\" + path + ".old")
+
+
+#
+# Deletes a mod at a given path.
+#
+def delete_mod(path, category, main):
+    if category == "None":
+        if os.path.isfile(main.game_directory + "\\" + path):
+            os.remove(main.game_directory + "\\" + path)
+        elif os.path.isfile(main.game_directory + "\\" + path + ".old"):
+            os.remove(main.game_directory + "\\" + path + ".old")
+    else:
+        if os.path.isfile(main.game_directory + "\\" + category + "\\" + path):
+            os.remove(main.game_directory + "\\" + category + "\\" + path)
+        elif os.path.isfile(main.game_directory + "\\" + category + "\\" + path + ".old"):
+            os.remove(main.game_directory + "\\" + category + "\\" + path + ".old")
 
 
 #
@@ -94,3 +108,51 @@ def get_steam_dir():
             if os.path.isdir(path + "\\steamapps\\common\\Ready or Not\\ReadyOrNot"):
                 return path + "\\steamapps\\common\\Ready or Not\\ReadyOrNot\\Content\\Paks"
         return None
+
+def read_path(stream: io.BufferedReader, encoding: str = 'utf-16') -> str:
+    try:
+        path_len, = st_unpack('<i',stream.read(4))
+        if path_len < 0:
+            # in at least some format versions, this indicates a UTF-16 path
+            path_len = -2 * path_len
+            encoding = 'iso-8859-1'
+        return stream.read(path_len).decode(encoding).rstrip('\0').replace('/',os.path.sep)
+    except:
+        return
+
+def read_index(stream):
+
+    stream.seek(-226, 2)
+    footer_offset = stream.tell()
+    footer = stream.read(226)
+    #magic, version, index_offset, index_size, index_sha1 = st_unpack('<iiqq20s',footer)
+    #unpacked = st_unpack('<IIQQ20s',footer)
+    key, index, magic, version, offset, size, hash, comp = st_unpack('< 20s h ii qq 20s 160s',footer)
+
+    stream.seek(offset, 0)
+    mount_point = read_path(stream, "utf-8")
+    entry_count = st_unpack('<I', stream.read(4))[0]
+
+    uncleaned_file_names = []
+
+    for i in range(entry_count):
+        if stream.tell() > footer_offset:
+            break
+
+        filename = read_path(stream, "iso-8859-1")
+        if ".uasset" in filename:
+            uncleaned_file_names.append(filename.replace("\x00", ""))
+
+    return uncleaned_file_names
+
+
+def get_completely_clean_name(string):
+    allowed_list = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-_./"
+    index = len(string)-1
+    try:
+        while string[index] in allowed_list:
+            index -= 1
+        return string[index+1:] + ".uasset"
+    except:
+        return string[1:] + ".uasset"
+
