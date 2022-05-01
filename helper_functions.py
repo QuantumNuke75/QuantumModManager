@@ -109,6 +109,60 @@ def get_steam_dir():
                 return path + "\\steamapps\\common\\Ready or Not\\ReadyOrNot\\Content\\Paks"
         return None
 
+#
+# Sets a pak's load order.
+#
+def set_pak_load_order(main, name, category, num):
+
+    if num < 0:
+        num = 0
+
+    if num > 99:
+        num = 99
+
+    dir = None
+    if category == "None":
+        if os.path.isfile(main.game_directory + "\\" + name):
+            dir = main.game_directory + "\\" + name
+        elif os.path.isfile(main.game_directory + "\\" + name + ".old"):
+            dir = main.game_directory + "\\" + name + ".old"
+    else:
+        if os.path.isfile(main.game_directory + "\\" + category + "\\" + name):
+            dir = main.game_directory + "\\" + category + "\\" + name
+        elif os.path.isfile(main.game_directory + "\\" + category + "\\" + name + ".old"):
+            dir = main.game_directory + "\\" + category + "\\" + name + ".old"
+
+    if "pakchunk" in dir:
+        split_dir = dir.split("pakchunk", 1)
+
+        num_to_remove = 0
+        for i in range(len(split_dir[1])):
+            try:
+                int(split_dir[1][i])
+                num_to_remove += 1
+            except:
+                break
+
+        split_dir[1] = split_dir[1][num_to_remove:]
+        os.rename(dir, split_dir[0] + "pakchunk" + str(num) + split_dir[1])
+
+    else:
+        split_dir = dir.rsplit("\\", 1)
+        os.rename(dir, split_dir[0] + "\\" + "pakchunk" + str(num) + split_dir[1])
+
+#
+# Gets a pak's load order.
+#
+def get_pak_load_order(name):
+    try:
+        return int("".join(filter(str.isdigit, name.replace("pakchunk", "")[0:3])))
+    except:
+        return 98
+
+
+#
+# Read the game path from bytes.
+#
 def read_path(stream: io.BufferedReader, encoding: str = 'utf-16') -> str:
     try:
         path_len, = st_unpack('<i',stream.read(4))
@@ -120,39 +174,82 @@ def read_path(stream: io.BufferedReader, encoding: str = 'utf-16') -> str:
     except:
         return
 
-def read_index(stream):
-
-    stream.seek(-226, 2)
-    footer_offset = stream.tell()
-    footer = stream.read(226)
-    #magic, version, index_offset, index_size, index_sha1 = st_unpack('<iiqq20s',footer)
-    #unpacked = st_unpack('<IIQQ20s',footer)
-    key, index, magic, version, offset, size, hash, comp = st_unpack('< 20s h ii qq 20s 160s',footer)
-
-    stream.seek(offset, 0)
-    mount_point = read_path(stream, "utf-8")
-    entry_count = st_unpack('<I', stream.read(4))[0]
-
-    uncleaned_file_names = []
-
-    for i in range(entry_count):
-        if stream.tell() > footer_offset:
-            break
-
-        filename = read_path(stream, "iso-8859-1")
-        if ".uasset" in filename:
-            uncleaned_file_names.append(filename.replace("\x00", ""))
-
-    return uncleaned_file_names
-
-
-def get_completely_clean_name(string):
-    allowed_list = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-_./"
-    index = len(string)-1
+#
+# Reads data from a pak file.
+#
+def read_file(stream):
     try:
-        while string[index] in allowed_list:
-            index -= 1
-        return string[index+1:] + ".uasset"
-    except:
-        return string[1:] + ".uasset"
+        # With pak version 11.
+        uasset_files = []
+        stream.seek(-225, 2)
+        footer_offset = stream.tell()
+        footer = stream.read(225)
+        key, index, magic, version, offset, size, hash, comp = st_unpack('< 20s c II QQ 20s 160s',footer)
+
+        stream.seek(offset, 0)
+        mount_point = read_path(stream, "utf-8")
+
+        entry_count = st_unpack('<I', stream.read(4))[0]
+
+        path_hash_seed = st_unpack('<Q', stream.read(8))[0]
+
+        has_path_hash_index = st_unpack('<I', stream.read(4))[0]
+
+        if has_path_hash_index != 0:
+            has_path_index_offset = st_unpack('<Q', stream.read(8))[0]
+
+            has_path_index_size = st_unpack('<Q', stream.read(8))[0]
+
+            has_path_index_hash = st_unpack('<20s', stream.read(20))[0]
+
+        has_full_directory_index = st_unpack('<I', stream.read(4))[0]
+
+        if has_full_directory_index != 0:
+            full_directory_index_offset = st_unpack('<Q', stream.read(8))[0]
+
+            full_directory_index_size = st_unpack('<Q', stream.read(8))[0]
+
+            full_directory_index_hash = st_unpack('<20s', stream.read(20))[0]
+
+        encoded_entry_info_size = st_unpack('<I', stream.read(4))[0]
+
+        encoded_entry_info  = st_unpack(f'<{encoded_entry_info_size}s', stream.read(encoded_entry_info_size))[0]
+
+        file_count = st_unpack('<I', stream.read(4))[0]
+
+        ######## INDEX RECORD ########
+        directory_count = st_unpack('<I', stream.read(4))[0]
+
+
+        stream.seek(full_directory_index_offset)
+
+        total_items = st_unpack('<I', stream.read(4))[0]
+
+        file_num = 0
+
+        for i in range(directory_count):
+            directory_name_size = st_unpack('<I', stream.read(4))[0]
+
+            directory_name = st_unpack(f'<{directory_name_size}s', stream.read(directory_name_size))[0]
+
+            file_count = st_unpack('<I', stream.read(4))[0]
+
+            if file_num >= directory_count:
+                break
+
+
+            for j in range(file_count):
+                file_name_size = st_unpack('<I', stream.read(4))[0]
+
+                file_name = st_unpack(f'<{file_name_size}s', stream.read(file_name_size))[0]
+
+                encoded_entry_offset = st_unpack('<I', stream.read(4))[0]
+                file_num += 1
+
+                if ".uasset" in file_name.decode("utf-8") or ".ini" in file_name.decode("utf-8"):
+                    uasset_files.append(mount_point + directory_name.decode("utf-8").replace("\x00", "") + file_name.decode("utf-8").replace("\x00", ""))
+    except Exception as e:
+        ...
+
+    return uasset_files
 
