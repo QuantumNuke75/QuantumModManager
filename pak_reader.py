@@ -14,14 +14,14 @@ def read_path(stream: io.BufferedReader, encoding: str = 'utf-16') -> str:
         return
 
 
-def read_index(stream):
-    stream.seek(-226, 2)
+def read_file(stream):
+    stream.seek(-225, 2)
     footer_offset = stream.tell()
-    footer = stream.read(226)
-    #magic, version, index_offset, index_size, index_sha1 = st_unpack('<iiqq20s',footer)
-    #unpacked = st_unpack('<IIQQ20s',footer)
-    key, index, magic, version, offset, size, hash, comp = st_unpack('< 20s H II QQ 20s 160s',footer)
+    footer = stream.read(225)
+
+    key, index, magic, version, offset, size, hash, comp = st_unpack('< 20s c II QQ 20s 160s',footer)
     print(offset)
+    print(f"Version: {version}")
 
     stream.seek(offset, 0)
     mount_point = read_path(stream, "utf-8")
@@ -73,11 +73,11 @@ def read_index(stream):
     print(f"directory_count: {directory_count}")
 
 
-    print(f"Pre Records {stream.tell()}")
-
     stream.seek(full_directory_index_offset)
 
-    stream.read(4)
+
+    total_items = st_unpack('<I', stream.read(4))[0]
+    print(f"total_items: {total_items}")
 
     file_num = 0
 
@@ -108,37 +108,8 @@ def read_index(stream):
             file_num += 1
 
 
-
-    print(f"EOR {stream.tell()}")
-
-
-
-
-    stream.seek(-1, 2)
-    print(f"EOF {stream.tell()}")
-
-def get_completely_clean_name(string):
-    allowed_list = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890-_./"
-    index = len(string)-1
-    try:
-        while string[index] in allowed_list:
-            index -= 1
-        return string[index+1:] + ".uasset"
-    except:
-        return string[1:] + ".uasset"
-
-
-reader = io.BufferedReader
-# with open("C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not\ReadyOrNot\Content\Paks\pakchunk999-InGameMenu_P.pak", "rb") as stream:
-#     read_index(stream)
-
-# with open("C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not\ReadyOrNot\Content\Paks\Misc\pakchunk99-Everything_Unlocked_7_P.pak", "rb") as stream:
-#     read_index(stream)
-
-time1 = time.time()
-with open("C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not\ReadyOrNot\Content\Paks\pakchunk999-InGameMenu_P.pak", "rb") as stream:
-    uncleaned_names = read_index(stream)
+with open("C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not\ReadyOrNot\Content\Paks\pakchunk99-Everything_Unlocked_15_P.pak", "rb") as stream:
+    read_file(stream)
     stream.close()
-
 
 
