@@ -4,6 +4,7 @@ from py7zr import unpack_7zarchive
 import wx.lib.agw.ultimatelistctrl as wxu
 from wx.lib.embeddedimage import PyEmbeddedImage
 import wx.lib.colourutils as cutils
+import wx.lib.scrolledpanel as scrolled
 
 import helper_functions
 
@@ -291,11 +292,11 @@ class ModManager(wx.Frame):
         grid_sizer_1.AddGrowableCol(0)
         sizer_1.Add(grid_sizer_1, 1, wx.EXPAND, 0)
 
-        ##############################
-        # Start customizable section #
-        ##############################
+#--------------------#
+# Start main section #
+#--------------------#
 
-        self.current_version = 3.7
+        self.current_version = 3.9
 
         self.current_item = None
         self.previous_item = None
@@ -305,9 +306,9 @@ class ModManager(wx.Frame):
         self.mod_selector_scroll_bar_settings = None
         self.is_in_mod_selector_cmenu = False
 
-        # body_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        #
-        # body_sizer.Add(wx.Button(self.panelBody, label="Hello"))
+        self.compatibility_box = None
+        self.compatibility_box_sizer = None
+
 
         outer_horz_sizer = wx.BoxSizer(wx.HORIZONTAL)
         self.panelBody.SetSizer(outer_horz_sizer)
@@ -318,9 +319,9 @@ class ModManager(wx.Frame):
         self.left_panel = wx.Panel(self.panelBody)
         self.right_panel = wx.Panel(self.panelBody)
 
-        #------------#
-        # Left Panel #
-        #------------#
+#------------#
+# Left Panel #
+#------------#
 
         left_panel_sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -333,9 +334,9 @@ class ModManager(wx.Frame):
 
         self.left_panel.SetSizer(left_panel_sizer)
 
-        #-------------#
-        # Right Panel #
-        #-------------#
+#-------------#
+# Right Panel #
+#-------------#
 
         right_panel_vert_sizer.Add((-1, 10))
 
@@ -374,7 +375,7 @@ class ModManager(wx.Frame):
         pak_folder_button.SetForegroundColour(wx.Colour(text_color))
 
         # Change Game Path button.
-        game_path_button = wx.Button(self.right_panel, label='Change Game Path', size=(-1, 30))
+        game_path_button = wx.Button(self.right_panel, label='Change Pak Folder', size=(-1, 30))
         game_path_button.SetBackgroundColour(button_color)
         game_path_button.SetForegroundColour(wx.Colour(text_color))
 
@@ -622,11 +623,11 @@ class ModManager(wx.Frame):
     #
     # Adds the mod incompatibility warning for a set of mods.
     #
-    def add_mod_compatiblity_warning(self, incompatible_1, incompatible_2):
+    def add_mod_compatiblity_warning(self, incompatible_1, incompatible_2, file_name):
         self.warning_pane.ShowItems(True)
-        warning_message = wx.StaticText(self.right_panel, label=f"- {incompatible_1} may be incompatible with {incompatible_2}.")
+        warning_message = wx.StaticText(self.compatibility_box, label=f"- {incompatible_1} may be incompatible with {incompatible_2}. ({file_name})")
         warning_message.SetForegroundColour(wx.Colour(text_color))
-        self.warning_pane.Add(warning_message, flag=wx.TOP | wx.BOTTOM, border=2)
+        self.compatibility_box_sizer.Add(warning_message, flag=wx.ALL, border=2)
 
 
     #
@@ -726,6 +727,7 @@ class ModManager(wx.Frame):
 
         # Check for conflicting mods.
         conflicting_mod_pairs = []
+        conflicting_mod_pairs_data = []
         blacklisted_uassets = ["BP_Door"]
 
         # Get all the pairs of conflicting mods, and add them to a list.
@@ -736,12 +738,26 @@ class ModManager(wx.Frame):
                     if (conflicting_file[i], conflicting_file[j]) not in conflicting_mod_pairs and \
                             (conflicting_file[j], conflicting_file[i]) not in conflicting_mod_pairs and \
                             not self.is_uasset_in_blacklist(key, blacklisted_uassets):
-                        conflicting_mod_pairs.append( (conflicting_file[i], conflicting_file[j]) )
 
-        for conflicting_pair in conflicting_mod_pairs:
-            # Make sure that the mods have the same load order, otherwise they do not technically conflict.
-            if helper_functions.get_pak_load_order(conflicting_pair[0]) == helper_functions.get_pak_load_order(conflicting_pair[1]):
-                self.add_mod_compatiblity_warning(conflicting_pair[0], conflicting_pair[1])
+                        # Make sure that the mods have the same load order, otherwise they do not technically conflict.
+                        if helper_functions.get_pak_load_order(conflicting_file[i]) == helper_functions.get_pak_load_order(conflicting_file[j]):
+                            conflicting_mod_pairs.append( (conflicting_file[i], conflicting_file[j]) )
+                            conflicting_mod_pairs_data.append( (conflicting_file[i], conflicting_file[j], key.split("\\")[-1]) )
+
+        if len(conflicting_mod_pairs) > 0:
+            self.compatibility_box = scrolled.ScrolledPanel(self.right_panel,-1, size=(100,100), style=wx.SIMPLE_BORDER)
+            self.compatibility_box.SetupScrolling()
+
+            self.compatibility_box.SetForegroundColour(wx.Colour(text_color))
+            self.compatibility_box.SetBackgroundColour(wx.Colour(main_color))
+
+            self.compatibility_box_sizer = wx.BoxSizer(wx.VERTICAL)
+            self.compatibility_box.SetSizer(self.compatibility_box_sizer)
+
+            self.warning_pane.Add(self.compatibility_box, flag=wx.TOP | wx.BOTTOM | wx.EXPAND, border=2, proportion=2)
+
+        for conflicting_pair in conflicting_mod_pairs_data:
+            self.add_mod_compatiblity_warning(conflicting_pair[0], conflicting_pair[1], conflicting_pair[2])
 
         # Update the panel to apply changes.
         self.right_panel.Layout()
@@ -784,7 +800,7 @@ class ModManager(wx.Frame):
         if name[-2:] == "_P":
             name = name[:-2]
         name = name.replace("Mods", "")  # Remove mods.
-        name = name.replace("_", "")  # Remove left over _'s
+        #name = name.replace("_", " ")  # Remove left over _'s
         name = name.replace("-", "")  # Remove left over -'s
         name = name.replace(" ", "")  # Prepare for camelcase regex.
         return name
@@ -796,14 +812,14 @@ class ModManager(wx.Frame):
             # Make sure first char is upper.
             regex_prepped_name = regex_prepped_name[0].upper() + regex_prepped_name[1:]
 
-            name_list = re.findall(r'[A-Z,0-9,()](?:[a-z]+|[A-Z,0-9,()]*(?=[A-Z,0-9,()]|$))', regex_prepped_name)
+            name_list = re.findall(r'[A-Z,0-9,(),_](?:[a-z]+|[A-Z,0-9,(),_]*(?=[A-Z,0-9,(),_]|$))', regex_prepped_name)
 
             final_name = ""
             for item in name_list:
                 final_name += item + " "
 
             # Replace parens.
-            final_name = final_name.replace("(", " ").replace(")", " ").strip(" ")
+            final_name = final_name.replace("(", " ").replace(")", " ").replace("_", " ").replace("  ", " ").strip(" ")
 
             return final_name
 
@@ -870,6 +886,8 @@ class ModManager(wx.Frame):
 
         if scroll_height != 0 and not scroll_height >= self.mod_selector._mainWin.GetScrollLines(wx.VERTICAL):
             self.mod_selector._mainWin.Scroll(-1, scroll_height)
+
+        self.mod_selector.Update()
 
 
 #-----------------#

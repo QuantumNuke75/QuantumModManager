@@ -108,7 +108,7 @@ def read_file(stream):
             file_num += 1
 
 
-with open("C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not\ReadyOrNot\Content\Paks\pakchunk99-Everything_Unlocked_15_P.pak", "rb") as stream:
+with open("C:\Program Files (x86)\Steam\steamapps\common\Ready Or Not\ReadyOrNot\Content\Paks\pakchunk99-InGameMenu_P.pak", "rb") as stream:
     read_file(stream)
     stream.close()
 
