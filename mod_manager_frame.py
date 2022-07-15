@@ -288,6 +288,7 @@ class ModManager(wx.Frame):
         self.panelTitleBar.SetSizer(title_bar_sizer)
         grid_sizer_1.Add(self.panelTitleBar, 1, wx.EXPAND, 0)
         grid_sizer_1.Add(self.panelBody, 1, wx.EXPAND, 0)
+        grid_sizer_1.Add(self.panelBody, 1, wx.EXPAND, 0)
         grid_sizer_1.AddGrowableRow(1)
         grid_sizer_1.AddGrowableCol(0)
         sizer_1.Add(grid_sizer_1, 1, wx.EXPAND, 0)
@@ -728,7 +729,7 @@ class ModManager(wx.Frame):
         # Check for conflicting mods.
         conflicting_mod_pairs = []
         conflicting_mod_pairs_data = []
-        blacklisted_uassets = ["BP_Door"]
+        blacklisted_uassets = ["BP_Door", "BP_SpawnAIREally"]
 
         # Get all the pairs of conflicting mods, and add them to a list.
         for key in filter(lambda key: len(self.conflicting_files[key])>1, self.conflicting_files.keys()):
